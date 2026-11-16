@@ -15,7 +15,6 @@ import com.pico.spatial.core.ecs.TransformComponent
 import com.pico.spatial.core.math.Vector3
 import com.pico.spatial.ui.foundation.content.SpatialView
 import com.pico.welcomespace.domain.model.FloorPlanRoom
-import com.pico.welcomespace.domain.model.RoomSurface
 import com.pico.welcomespace.domain.model.RoomSurfaceKind
 import com.pico.welcomespace.domain.model.VirtualRoomPlan
 import com.pico.welcomespace.domain.model.ShopCategory
@@ -276,23 +275,6 @@ private fun Entity.realWorldScaleFor(product: ShopProduct): Float {
 
 private fun Entity.currentUniformScale(): Float =
     components[TransformComponent::class.java]?.scaleVector?.x ?: 1f
-
-internal fun chooseSurface(
-    product: ShopProduct,
-    position: Vector3,
-    surfaces: List<RoomSurface>
-): RoomSurface? = FloorPlanRoom.choosePlacement(
-    product = product,
-    x = position.x,
-    z = position.z,
-    plan = VirtualRoomPlan(
-        name = "test",
-        widthMeters = 0f,
-        depthMeters = 0f,
-        walls = emptyList(),
-        surfaces = surfaces
-    )
-)?.surface
 
 // An inscribed circle stays on a detected horizontal plane regardless of its yaw.
 internal fun fitsSurface(

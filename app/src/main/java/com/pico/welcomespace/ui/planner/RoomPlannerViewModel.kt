@@ -16,20 +16,6 @@ class RoomPlannerViewModel(
 
     fun onEvent(event: RoomPlannerEvent) {
         when (event) {
-            is RoomPlannerEvent.FootprintScaleChanged -> _state.update {
-                val scale = (it.footprintScale + event.delta).coerceIn(0.6f, 1.8f)
-                it.copy(
-                    footprintScale = scale,
-                    generatedPlan = FloorPlanRoom.scaledPlan(scale, it.wallHeight)
-                )
-            }
-            is RoomPlannerEvent.WallHeightChanged -> _state.update {
-                val height = (it.wallHeight + event.delta).coerceIn(2.2f, 3.6f)
-                it.copy(
-                    wallHeight = height,
-                    generatedPlan = FloorPlanRoom.scaledPlan(it.footprintScale, height)
-                )
-            }
             is RoomPlannerEvent.FloorPlanRecognized -> _state.update {
                 val result = recognizeFloorPlan.recognize(event.source)
                 RoomPlannerSession.applyPlan(result.plan)
@@ -44,10 +30,6 @@ class RoomPlannerViewModel(
                 val plan = FloorPlanRoom.scaledPlan(it.footprintScale, it.wallHeight)
                 RoomPlannerSession.applyPlan(plan)
                 it.copy(generatedPlan = plan)
-            }
-            RoomPlannerEvent.ResetPlan -> _state.update {
-                RoomPlannerSession.applyPlan(FloorPlanRoom.demoPlan)
-                RoomPlannerUiState()
             }
         }
     }

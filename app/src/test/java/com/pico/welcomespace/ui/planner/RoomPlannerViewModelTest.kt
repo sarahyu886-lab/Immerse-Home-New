@@ -9,13 +9,10 @@ import org.junit.Test
 class RoomPlannerViewModelTest {
     @Test
     fun footprintScaleRegeneratesMeterPlan() {
-        val vm = RoomPlannerViewModel()
-        vm.onEvent(RoomPlannerEvent.FootprintScaleChanged(0.2f))
+        val plan = FloorPlanRoom.scaledPlan(1.2f, 2.7f)
 
-        val state = vm.state.value
-        assertEquals(1.2f, state.footprintScale, 0.001f)
-        assertEquals(13.2f, state.generatedPlan.widthMeters, 0.001f)
-        assertEquals(14.22f, state.generatedPlan.depthMeters, 0.001f)
+        assertEquals(13.2f, plan.widthMeters, 0.001f)
+        assertEquals(14.22f, plan.depthMeters, 0.001f)
     }
 
     @Test
@@ -29,7 +26,6 @@ class RoomPlannerViewModelTest {
     @Test
     fun applyPreviewPublishesPlanToStageSession() {
         val vm = RoomPlannerViewModel()
-        vm.onEvent(RoomPlannerEvent.FootprintScaleChanged(0.1f))
         vm.onEvent(RoomPlannerEvent.ApplyPreview)
 
         assertEquals(vm.state.value.generatedPlan.widthMeters, RoomPlannerSession.activePlan.widthMeters, 0.001f)
