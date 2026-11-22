@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "assetId": "chair-01",
+  "name": "\u590d\u53e4\u96d5\u82b1\u4f11\u95f2\u6905",
+  "category": "SOFA",
+  "file": "ArmChair_01.glb",
+  "sha256": "6ef5283521fa9f28b7ee9d8ab4fa699054878e9ed5753545c7e3334dc91b51f5",
+  "source": "legacy_bundled",
+  "format": "GLB",
+  "originalUnit": "meter",
+  "unitEvidence": "glTF 2.0 specification",
+  "originalSizeMeters": [
+    0.8484309017658234,
+    1.065087635157397,
+    0.7657602727413177
+  ],
+  "boundingBox": {
+    "min": [
+      -0.4242154359817505,
+      -0.0004314967372920364,
+      -0.4173066020011902
+    ],
+    "max": [
+      0.4242154657840729,
+      1.064656138420105,
+      0.34845367074012756
+    ],
+    "dimensions": {
+      "width": 0.8484309017658234,
+      "height": 1.065087635157397,
+      "depth": 0.7657602727413177
+    },
+    "space": "asset scene, node transforms applied"
+  },
+  "declaredSizeMeters": [
+    0.848,
+    1.065,
+    0.766
+  ],
+  "realFurnitureSizeMeters": null,
+  "standardSizeMeters": [
+    0.8483610930729398,
+    1.065,
+    0.7656972661681355
+  ],
+  "coordinateSystem": "right-handed",
+  "upAxis": "+Y",
+  "pivot": "runtime wrapper: bottom center; original file unchanged",
+  "scaleRecord": {
+    "unitConversion": 1,
+    "uniformCalibration": 0.9999177202377492,
+    "baked": false,
+    "appliedOnceToFreshAssetChild": true
+  },
+  "dimensionConfidence": "unverified_nominal",
+  "dimensionSource": "existing catalog, no physical specification",
+  "preview": {
+    "type": "runtime_SpatialModelView",
+    "imageFile": null
+  },
+  "materials": "embedded glTF materials and images, original preserved",
+  "validationStatus": "geometry_checked_real_size_unverified",
+  "ratioDeviation": 0.0004258173029951795,
+  "originalImportTime": null,
+  "profileCreatedAt": "2026-11-22T02:45:52.270941+00:00"
+}

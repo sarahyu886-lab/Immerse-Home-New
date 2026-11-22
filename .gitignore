@@ -4,6 +4,10 @@ build/
 
 # Local configuration file (sdk path, etc)
 local.properties
+.private/
+.spatialsdk/
+*.local.env
+tools/__pycache__/
 
 # Log/OS Files
 *.log

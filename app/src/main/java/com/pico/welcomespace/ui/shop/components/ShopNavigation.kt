@@ -16,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -33,6 +35,7 @@ import androidx.compose.ui.semantics.semantics
 import com.pico.spatial.ui.design.Button
 import com.pico.spatial.ui.design.ButtonDefaults
 import com.pico.spatial.ui.design.IconButton
+import com.pico.spatial.ui.design.IconButtonDefaults
 import com.pico.spatial.ui.design.PicoTheme
 import com.pico.spatial.ui.design.SearchField
 import com.pico.spatial.ui.design.Text
@@ -78,6 +81,8 @@ fun ShopHeader(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
             val iconColor = PicoTheme.colorScheme.labelPrimary
             IconButton(
                 onClick = { onEvent(ShopEvent.OpenCart) },
+                colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Transparent,
+                    contentColor = iconColor),
                 modifier = Modifier.size(56.dp).semantics {
                     contentDescription = "打开购物车，${state.cartCount} 件商品"
                 },
@@ -114,6 +119,8 @@ fun ShopHeader(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
             val iconColor = PicoTheme.colorScheme.labelPrimary
             IconButton(
                 onClick = { onEvent(ShopEvent.GoHome) },
+                colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Transparent,
+                    contentColor = iconColor),
                 modifier = Modifier.size(56.dp).semantics {
                     contentDescription = "返回首页"
                 },
@@ -215,28 +222,29 @@ fun ShopSidebar(
             .fillMaxHeight()
             .clip(RoundedCornerShape(24.dp))
             .background(PicoTheme.colorScheme.fillSecondary)
-            .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(12.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(
             text = "探索分类",
             style = PicoTheme.typography.titleMedium,
             color = PicoTheme.colorScheme.labelPrimary
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         ShopCategory.entries.forEach { category ->
             val selected = category == state.selectedCategory
             Button(
                 onClick = { onEvent(ShopEvent.CategorySelected(category)) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(44.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (selected) {
-                        PicoTheme.colorScheme.interaction
+                        Color(0xE6FFBF4A) // design-style: fixed-figma-color 用户指定黄色选中态。
                     } else {
-                        PicoTheme.colorScheme.fillTertiary
+                        Color.Transparent
                     },
                     contentColor = if (selected) {
-                        PicoTheme.colorScheme.labelPrimaryLight
+                        PicoTheme.colorScheme.labelPrimary
                     } else {
                         PicoTheme.colorScheme.labelPrimary
                     }

@@ -17,11 +17,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.pico.spatial.ui.design.Button
+import com.pico.spatial.ui.design.ButtonDefaults
 import com.pico.spatial.ui.design.PicoTheme
 import com.pico.spatial.ui.design.Text
 import com.pico.spatial.ui.foundation.content.Resizability
@@ -36,6 +38,9 @@ import com.pico.welcomespace.domain.model.ShopProduct
 import com.pico.welcomespace.ui.shop.ShopEvent
 import com.pico.welcomespace.ui.shop.ShopUiState
 import com.pico.welcomespace.ui.shop.RoomPlacement
+import com.pico.welcomespace.ui.shop.FurnitureEditMode
+import com.pico.welcomespace.ui.shop.floorPoint
+import com.pico.spatial.core.math.Vector3
 import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.abs
@@ -45,9 +50,10 @@ fun ShopWelcome(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 14.dp, bottom = 2.dp),
-        verticalAlignment = Alignment.Bottom
+            .padding(bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        FurnitureModeButtons()
         Spacer(modifier = Modifier.weight(1f))
         if (state.visibleProducts.size > 1) {
             Text(
@@ -59,12 +65,16 @@ fun ShopWelcome(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
             val index = state.visibleProducts.indexOfFirst { it.id == state.selectedProductId }
             Button(
                 onClick = { onEvent(ShopEvent.PageMoved(-1)) },
-                enabled = index > 0
+                enabled = index > 0,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent,
+                    contentColor = PicoTheme.colorScheme.labelPrimary)
             ) { Text("上一件") }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
                 onClick = { onEvent(ShopEvent.PageMoved(1)) },
-                enabled = index < state.visibleProducts.lastIndex
+                enabled = index < state.visibleProducts.lastIndex,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent,
+                    contentColor = PicoTheme.colorScheme.labelPrimary)
             ) { Text("下一件") }
         }
     }
@@ -81,16 +91,19 @@ fun FeaturedProduct(
     val (collection, headline) = when (product.id) {
         "chair-01" -> "THE CHAIR EDIT" to "坐下来，\n让时间慢一点。"
         "lamp-01" -> "THE LIGHT EDIT" to "一盏灯，\n点亮家的温度。"
+        "floor-lamp-01" -> "THE LIGHT EDIT" to "一束暖光，\n陪伴每个夜晚。"
+        "rug-01" -> "THE TEXTILE EDIT" to "柔软织纹，\n安放日常。"
+        "tv-cabinet-01" -> "THE STORAGE EDIT" to "有序收纳，\n留白生活。"
         else -> "THE LIVING EDIT" to "松弛有度，\n自在入座。"
     }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(315.dp)
+                .height(230.dp)
                 .clip(RoundedCornerShape(28.dp))
                 .background(PicoTheme.colorScheme.fillSecondary)
-                .padding(horizontal = 32.dp, vertical = 24.dp),
+                .padding(horizontal = 24.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
@@ -117,22 +130,28 @@ fun FeaturedProduct(
                     style = PicoTheme.typography.labelMedium,
                     color = PicoTheme.colorScheme.interaction
                 )
-                Spacer(modifier = Modifier.height(22.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = headline,
-                    style = PicoTheme.typography.displaySmall,
+                    text = product.name,
+                    style = PicoTheme.typography.titleLarge,
                     color = PicoTheme.colorScheme.labelPrimary
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = product.description,
+                    text = with(product.physicalSize) {
+                        String.format(Locale.CHINA, "宽 %.3f × 深 %.3f × 高 %.3f m", width, depth, height)
+                    },
                     style = PicoTheme.typography.bodyMedium,
                     color = PicoTheme.colorScheme.labelSecondary
                 )
-                Spacer(modifier = Modifier.height(18.dp))
+                Text(product.dimensionSource.label, style = PicoTheme.typography.bodySmall,
+                    color = PicoTheme.colorScheme.labelSecondary)
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = "文字区滑动翻页 · 抓住模型放入样板间",
-                    style = PicoTheme.typography.labelLarge,
+                    text = if (RoomPlacement.editMode == FurnitureEditMode.ROTATE)
+                        "抓住房间内家具，左右拖动旋转\n尺寸保持不变"
+                    else "抓住预览模型，指向地面后松手\n放下后可继续抓取移动",
+                    style = PicoTheme.typography.bodySmall,
                     color = PicoTheme.colorScheme.interaction
                 )
             }
@@ -146,25 +165,33 @@ fun FeaturedProduct(
                     source = Source.assets(product.modelAsset),
                     resizability = Resizability.FitInside,
                     modifier = Modifier
-                        .size(width = 440.dp, height = 260.dp)
+                        .size(width = 360.dp, height = 190.dp)
                         .zOffset { (-12).dp.toPx() }
                         .scale3D(0.45f)
                         .pointerInput(product.id) {
+                            var lastPoint: Vector3? = null
                             detectSpatialDragGesture(
                                 context = context,
                                 targetedToEntity = TargetEntity.any(),
                                 onDragStart = { _, value ->
-                                    val pose = value.inputDevicePose.rawPosition
-                                    RoomPlacement.start(product, pose.x, pose.y, pose.z)
+                                    lastPoint = value.floorPoint()
+                                    lastPoint?.let { RoomPlacement.start(product, it.x, it.y, it.z) }
+                                    if (lastPoint == null) RoomPlacement.report("保持抓取，将射线移向房间地面")
                                 },
                                 onDragEnd = { value ->
-                                    val pose = value.inputDevicePose.rawPosition
-                                    RoomPlacement.drop(pose.x, pose.y, pose.z)
+                                    lastPoint?.let {
+                                        val point = value.floorPoint() ?: it
+                                        RoomPlacement.drop(point.x, point.y, point.z)
+                                    }
+                                    lastPoint = null
                                 },
-                                onDragCancel = { RoomPlacement.cancel() }
+                                onDragCancel = { lastPoint = null; RoomPlacement.cancel() }
                             ) { value ->
-                                val pose = value.inputDevicePose.rawPosition
-                                RoomPlacement.move(pose.x, pose.y, pose.z)
+                                value.floorPoint()?.let { point ->
+                                    if (lastPoint == null) RoomPlacement.start(product, point.x, point.y, point.z)
+                                    else RoomPlacement.move(point.x, point.y, point.z)
+                                    lastPoint = point
+                                }
                             }
                         }
                 )
@@ -188,6 +215,18 @@ fun FeaturedProduct(
                     text = product.name,
                     style = PicoTheme.typography.titleLarge,
                     color = PicoTheme.colorScheme.labelPrimary
+                )
+                Text(
+                    text = with(product.physicalSize) {
+                        String.format(Locale.CHINA, "宽 %.3f × 深 %.3f × 高 %.3f m", width, depth, height)
+                    },
+                    style = PicoTheme.typography.bodyMedium,
+                    color = PicoTheme.colorScheme.labelPrimary
+                )
+                Text(
+                    text = product.dimensionSource.label,
+                    style = PicoTheme.typography.bodySmall,
+                    color = PicoTheme.colorScheme.labelSecondary
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
@@ -213,11 +252,24 @@ fun FeaturedProduct(
                 Text("加入购物车")
             }
         }
-        Text(
-            text = RoomPlacement.message,
-            style = PicoTheme.typography.bodySmall,
-            color = PicoTheme.colorScheme.labelSecondary
-        )
+        Text(RoomPlacement.message, style = PicoTheme.typography.bodySmall,
+            color = PicoTheme.colorScheme.labelSecondary)
+    }
+}
+
+@Composable
+private fun FurnitureModeButtons() {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FurnitureEditMode.entries.forEach { mode ->
+            val selected = RoomPlacement.editMode == mode
+            Button(
+                onClick = { RoomPlacement.editMode = mode },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (selected) Color(0xE6FFBF4A) else Color.Transparent, // design-style: fixed-figma-color 用户指定黄色选中态。
+                    contentColor = PicoTheme.colorScheme.labelPrimary
+                )
+            ) { Text(if (mode == FurnitureEditMode.MOVE) "移动家具" else "旋转家具") }
+        }
     }
 }
 

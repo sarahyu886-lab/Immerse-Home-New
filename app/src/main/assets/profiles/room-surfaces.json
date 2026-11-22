@@ -1,0 +1,24 @@
+{
+  "interiorMeters": [
+    4.0,
+    2.5,
+    5.0
+  ],
+  "floor": {
+    "tileMeters": [
+      1.2,
+      1.2
+    ],
+    "source": "procedural_demo"
+  },
+  "walls": {
+    "tileMeters": [
+      1,
+      1
+    ],
+    "source": "procedural_demo"
+  },
+  "uvPolicy": "surface position in meters divided by texture coverage meters",
+  "normalMap": null,
+  "roughness": 0.8
+}

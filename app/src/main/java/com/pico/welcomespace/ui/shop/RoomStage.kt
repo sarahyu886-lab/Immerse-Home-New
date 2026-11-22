@@ -9,11 +9,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.pico.spatial.core.ecs.Entity
 import com.pico.spatial.core.ecs.TransformComponent
 import com.pico.spatial.core.math.Vector3
 import com.pico.spatial.ui.foundation.content.SpatialView
+import com.pico.spatial.ui.foundation.gesture.TargetEntity
+import com.pico.spatial.ui.foundation.gesture.detectSpatialDragGesture
+import com.pico.spatial.ui.platform.LocalPhysicalLengthConverter
+import com.pico.spatial.ui.platform.LengthUnit
 import com.pico.welcomespace.domain.model.FloorPlanRoom
 import com.pico.welcomespace.domain.model.RoomSurfaceKind
 import com.pico.welcomespace.domain.model.VirtualRoomPlan
@@ -35,6 +41,7 @@ internal sealed interface PlacementGesture {
 
 internal object RoomPlacement {
     val gestures = Channel<PlacementGesture>(Channel.UNLIMITED)
+    var editMode by mutableStateOf(FurnitureEditMode.MOVE)
     var active by mutableStateOf(false)
         private set
     var message by mutableStateOf("正在打开虚拟样板间…")
@@ -42,6 +49,11 @@ internal object RoomPlacement {
 
     fun updateAvailability(value: Boolean) {
         active = value
+        if (!value) {
+            while (gestures.tryReceive().isSuccess) {
+                // 清除关闭场景前未消费的输入，避免重开后出现旧预览。
+            }
+        }
     }
 
     fun report(value: String) {
@@ -73,13 +85,31 @@ internal object RoomPlacement {
 @Composable
 fun RoomStage() {
     val root = remember { Entity() }
-    val roomPlan = RoomPlannerSession.activePlan
-    val roomRevision = RoomPlannerSession.revision
+    val furniture = remember(root) { FurnitureScene(root) }
+    val context = LocalContext.current
+    val converter = LocalPhysicalLengthConverter.current
     var attached by remember { mutableStateOf(false) }
-    var roomRoot by remember { mutableStateOf<Entity?>(null) }
 
     SpatialView(
-        modifier = Modifier.size(1.dp),
+        modifier = Modifier.size(1.dp).pointerInput(root) {
+            var target: Entity? = null
+            detectSpatialDragGesture(
+                context = context,
+                targetedToEntity = TargetEntity.any { furniture.accepts(it) },
+                onDragStart = { _, value -> target = value.targetEntity },
+                onDragEnd = { target = null },
+                onDragCancel = { target = null }
+            ) { value ->
+                // SDK 手势增量为视图像素；Stage 根无旋转，转换到米制右手坐标。
+                val dx = with(density) {
+                    converter.dpToLength(value.dragAmount.x.toDp(), LengthUnit.Meters)
+                }
+                val dz = with(density) {
+                    converter.dpToLength(value.dragAmount.z.toDp(), LengthUnit.Meters)
+                }
+                furniture.edit(target ?: value.targetEntity, Vector3(dx, 0f, dz), RoomPlacement.editMode)
+            }
+        },
         initial = { content, _ ->
             content.addEntity(root)
             attached = true
@@ -89,192 +119,41 @@ fun RoomStage() {
     DisposableEffect(Unit) {
         onDispose {
             RoomPlacement.updateAvailability(false)
+            furniture.close()
             root.destroy()
         }
     }
 
     LaunchedEffect(attached) {
         if (!attached) return@LaunchedEffect
-        RoomPlacement.updateAvailability(true)
         root.components[TransformComponent::class.java]?.setPosition(RoomOriginOffset)
-        RoomPlacement.report("虚拟样板间已就绪：拖动商品模型，松手后吸附到地面或桌面")
-    }
-
-    LaunchedEffect(attached, roomRevision) {
-        if (!attached) return@LaunchedEffect
-        roomRoot?.destroy()
-        val nextRoomRoot = Entity()
-        root.addChild(nextRoomRoot)
-        buildVirtualRoom(nextRoomRoot, roomPlan)
-        roomRoot = nextRoomRoot
-        RoomPlacement.report("${roomPlan.name}已生成，可拖动商品模型放置")
+        try {
+            root.addChild(Entity.loadSuspend("asset://standard_room.glb"))
+            RoomPlacement.updateAvailability(true)
+            RoomPlacement.report("4 × 5 × 2.5 米房间已就绪，拖入模型后可继续移动或旋转")
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            RoomPlacement.report("房间模型加载失败，请重新打开")
+        }
     }
 
     LaunchedEffect(attached) {
         if (!attached) return@LaunchedEffect
-        var preview: Entity? = null
-        var selected: ShopProduct? = null
         try {
             for (gesture in RoomPlacement.gestures) {
                 when (gesture) {
-                    is PlacementGesture.Start -> {
-                        preview?.destroy()
-                        preview = null
-                        selected = gesture.product
-                        try {
-                            val model = Entity.loadSuspend("asset://${gesture.product.modelAsset}")
-                            val modelScale = model.realWorldScaleFor(gesture.product)
-                            val position = root.convertPositionFrom(gesture.position, null)
-                            val placement = chooseVirtualSurface(
-                                gesture.product,
-                                position,
-                                RoomPlannerSession.activePlan
-                            )
-                            model.components[TransformComponent::class.java]?.apply {
-                                setPosition(
-                                    placement?.toModelPosition(gesture.product, modelScale)
-                                        ?: Vector3(position.x, 0f, position.z)
-                                )
-                                setScaleVector(Vector3(modelScale, modelScale, modelScale))
-                            }
-                            root.addChild(model)
-                            preview = model
-                        } catch (error: Exception) {
-                            RoomPlacement.report("模型加载失败，请重新尝试")
-                        }
-                    }
-                    is PlacementGesture.Move -> {
-                        val product = selected
-                        val position = root.convertPositionFrom(gesture.position, null)
-                        val placement = if (product == null) {
-                            null
-                        } else {
-                            chooseVirtualSurface(product, position, RoomPlannerSession.activePlan)
-                        }
-                        preview?.components?.get(TransformComponent::class.java)
-                            ?.setPosition(
-                                placement?.toModelPosition(product!!, preview?.currentUniformScale() ?: 1f)
-                                    ?: Vector3(position.x, 0f, position.z)
-                            )
-                    }
-                    is PlacementGesture.Drop -> {
-                        val product = selected
-                        val model = preview
-                        if (product != null && model != null) {
-                            val position = root.convertPositionFrom(gesture.position, null)
-                            val placement = chooseVirtualSurface(
-                                product,
-                                position,
-                                RoomPlannerSession.activePlan
-                            )
-                            if (placement == null) {
-                                model.destroy()
-                                RoomPlacement.report(
-                                    "未找到足够大的${surfaceName(product)}，请换一个房间区域"
-                                )
-                            } else {
-                                // GLB coordinates are meters; the in-page preview scale is not retained.
-                                val modelScale = model.currentUniformScale()
-                                model.components[TransformComponent::class.java]?.apply {
-                                    setPosition(placement.toModelPosition(product, modelScale))
-                                    setScaleVector(Vector3(modelScale, modelScale, modelScale))
-                                }
-                                RoomPlacement.report(
-                                    "${product.name}已按 1:1 尺寸放置在${placement.label}"
-                                )
-                            }
-                        }
-                        preview = null
-                        selected = null
-                    }
-                    PlacementGesture.Cancel -> {
-                        preview?.destroy()
-                        preview = null
-                        selected = null
-                        RoomPlacement.report("已取消放置")
-                    }
+                    is PlacementGesture.Start -> furniture.start(gesture.product, gesture.position)
+                    is PlacementGesture.Move -> furniture.movePreview(gesture.position)
+                    is PlacementGesture.Drop -> furniture.drop(gesture.position)
+                    PlacementGesture.Cancel -> furniture.cancel()
                 }
             }
         } finally {
-            preview?.destroy()
+            furniture.cancel()
         }
     }
 }
-
-private suspend fun buildVirtualRoom(root: Entity, plan: VirtualRoomPlan) {
-    plan.surfaces.forEach { surface ->
-        val thickness = if (surface.kind == RoomSurfaceKind.TABLE) 0.08f else 0.035f
-        addBox(
-            root = root,
-            position = Vector3(surface.centerX, surface.heightY - thickness / 2f, surface.centerZ),
-            scale = Vector3(surface.width, thickness, surface.depth)
-        )
-        if (surface.kind == RoomSurfaceKind.TABLE) {
-            addBox(
-                root = root,
-                position = Vector3(surface.centerX, surface.heightY / 2f, surface.centerZ),
-                scale = Vector3(surface.width * 0.88f, surface.heightY, surface.depth * 0.88f)
-            )
-        }
-    }
-    plan.walls.forEach { wall ->
-        addBox(
-            root = root,
-            position = Vector3(wall.centerX, wall.height / 2f, wall.centerZ),
-            scale = Vector3(wall.width, wall.height, wall.depth)
-        )
-    }
-}
-
-private suspend fun addBox(root: Entity, position: Vector3, scale: Vector3) {
-    val box = Entity.loadSuspend("asset://$RoomBlockAsset")
-    box.components[TransformComponent::class.java]?.apply {
-        setPosition(position)
-        setScaleVector(scale)
-    }
-    root.addChild(box)
-}
-
-private fun chooseVirtualSurface(
-    product: ShopProduct,
-    position: Vector3,
-    plan: VirtualRoomPlan
-): VirtualPlacement? =
-    FloorPlanRoom.choosePlacement(product, position.x, position.z, plan)
-        ?.let { target ->
-            VirtualPlacement(
-                x = target.x,
-                y = target.y,
-                z = target.z,
-                label = target.surface.label
-            )
-        }
-
-private data class VirtualPlacement(
-    val x: Float,
-    val y: Float,
-    val z: Float,
-    val label: String
-) {
-    fun toModelPosition(product: ShopProduct, modelScale: Float): Vector3 =
-        Vector3(x, y - product.modelBaseY * modelScale, z)
-}
-
-private fun Entity.realWorldScaleFor(product: ShopProduct): Float {
-    val size = runCatching { getVisualBounds(this, true, true).size }.getOrNull()
-        ?: return 1f
-    if (size.x <= 0f || size.y <= 0f || size.z <= 0f) return 1f
-
-    val target = product.physicalSize
-    return when (max(target.width, max(target.height, target.depth))) {
-        target.width -> target.width / size.x
-        target.height -> target.height / size.y
-        else -> target.depth / size.z
-    }.coerceIn(MinFurnitureScale, MaxFurnitureScale)
-}
-
-private fun Entity.currentUniformScale(): Float =
-    components[TransformComponent::class.java]?.scaleVector?.x ?: 1f
 
 // An inscribed circle stays on a detected horizontal plane regardless of its yaw.
 internal fun fitsSurface(
@@ -289,10 +168,4 @@ internal fun fitsSurface(
     return usableRadius >= 0f && hypot(offsetX, offsetZ) <= usableRadius
 }
 
-private fun surfaceName(product: ShopProduct): String =
-    if (product.category == ShopCategory.LIGHTING) "桌面" else "地面"
-
-private val RoomOriginOffset = Vector3(0f, 0f, -4.5f)
-private const val RoomBlockAsset = "gray_room_block.gltf"
-private const val MinFurnitureScale = 0.05f
-private const val MaxFurnitureScale = 20f
+private val RoomOriginOffset = Vector3(0f, 0f, -2.25f)

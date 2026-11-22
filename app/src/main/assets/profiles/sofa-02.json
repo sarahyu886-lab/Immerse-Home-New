@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "assetId": "sofa-02",
+  "name": "\u66ae\u8272\u7ecf\u5178\u53cc\u4eba\u6c99\u53d1",
+  "category": "SOFA",
+  "file": "sofa.glb",
+  "sha256": "2275ff550c70690f4ca73c9a7120e3ac3d8de16642260c731d7be378829a533d",
+  "source": "legacy_bundled",
+  "format": "GLB",
+  "originalUnit": "meter",
+  "unitEvidence": "glTF 2.0 specification",
+  "originalSizeMeters": [
+    1.8071673512458801,
+    0.7094889283180237,
+    0.8177513778209686
+  ],
+  "boundingBox": {
+    "min": [
+      -0.903316353505943,
+      0.00020572543144226074,
+      -0.4776984825730324
+    ],
+    "max": [
+      0.9038509977399372,
+      0.7096946537494659,
+      0.34005289524793625
+    ],
+    "dimensions": {
+      "width": 1.8071673512458801,
+      "height": 0.7094889283180237,
+      "depth": 0.8177513778209686
+    },
+    "space": "asset scene, node transforms applied"
+  },
+  "declaredSizeMeters": [
+    1.807,
+    0.709,
+    0.818
+  ],
+  "realFurnitureSizeMeters": null,
+  "standardSizeMeters": [
+    1.807,
+    0.7094232266794841,
+    0.8176756506273558
+  ],
+  "coordinateSystem": "right-handed",
+  "upAxis": "+Y",
+  "pivot": "runtime wrapper: bottom center; original file unchanged",
+  "scaleRecord": {
+    "unitConversion": 1,
+    "uniformCalibration": 0.9999073958226588,
+    "baked": false,
+    "appliedOnceToFreshAssetChild": true
+  },
+  "dimensionConfidence": "unverified_nominal",
+  "dimensionSource": "existing catalog, no physical specification",
+  "preview": {
+    "type": "runtime_SpatialModelView",
+    "imageFile": null
+  },
+  "materials": "embedded glTF materials and images, original preserved",
+  "validationStatus": "geometry_checked_real_size_unverified",
+  "ratioDeviation": 0.0005969346678196263,
+  "originalImportTime": null,
+  "profileCreatedAt": "2026-11-22T02:45:52.265417+00:00"
+}

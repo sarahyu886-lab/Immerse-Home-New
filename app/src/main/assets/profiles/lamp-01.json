@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "assetId": "lamp-01",
+  "name": "\u7075\u52a8\u5173\u8282\u9605\u8bfb\u706f",
+  "category": "LIGHTING",
+  "file": "desk_lamp_arm_01.glb",
+  "sha256": "da80cd420d47d123f297ab57944ff9ba10c9e9e3c97288b955449c5db7fd3e27",
+  "source": "legacy_bundled",
+  "format": "GLB",
+  "originalUnit": "meter",
+  "unitEvidence": "glTF 2.0 specification",
+  "originalSizeMeters": [
+    0.20172932744026184,
+    0.8926106989383698,
+    0.6138725876808167
+  ],
+  "boundingBox": {
+    "min": [
+      -0.11847317218780518,
+      -0.08799377083778381,
+      -0.29663750529289246
+    ],
+    "max": [
+      0.08325615525245667,
+      0.8046169281005859,
+      0.3172350823879242
+    ],
+    "dimensions": {
+      "width": 0.20172932744026184,
+      "height": 0.8926106989383698,
+      "depth": 0.6138725876808167
+    },
+    "space": "asset scene, node transforms applied"
+  },
+  "declaredSizeMeters": [
+    0.202,
+    0.893,
+    0.614
+  ],
+  "realFurnitureSizeMeters": null,
+  "standardSizeMeters": [
+    0.20181730917902865,
+    0.8930000000000001,
+    0.6141403205797995
+  ],
+  "coordinateSystem": "right-handed",
+  "upAxis": "+Y",
+  "pivot": "runtime wrapper: bottom center; original file unchanged",
+  "scaleRecord": {
+    "unitConversion": 1,
+    "uniformCalibration": 1.0004361375704922,
+    "baked": false,
+    "appliedOnceToFreshAssetChild": true
+  },
+  "dimensionConfidence": "unverified_nominal",
+  "dimensionSource": "existing catalog, no physical specification",
+  "preview": {
+    "type": "runtime_SpatialModelView",
+    "imageFile": null
+  },
+  "materials": "embedded glTF materials and images, original preserved",
+  "validationStatus": "geometry_checked_real_size_unverified",
+  "ratioDeviation": 0.0009044100048086756,
+  "originalImportTime": null,
+  "profileCreatedAt": "2026-11-22T02:45:52.288444+00:00"
+}

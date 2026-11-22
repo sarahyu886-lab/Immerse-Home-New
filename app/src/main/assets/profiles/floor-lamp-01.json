@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "assetId": "floor-lamp-01",
+  "name": "\u6696\u5149\u7acb\u5f0f\u843d\u5730\u706f",
+  "category": "LIGHTING",
+  "file": "floor_lamp.glb",
+  "sha256": "f5c12580b60068ace7d026ee77e8678ea12caf506c89032cb8056729acbdf4e9",
+  "source": "procedural_demo",
+  "format": "GLB",
+  "originalUnit": "meter",
+  "unitEvidence": "glTF 2.0 specification",
+  "originalSizeMeters": [
+    0.44999998807907104,
+    1.649999976158142,
+    0.44999998807907104
+  ],
+  "boundingBox": {
+    "min": [
+      -0.22499999403953552,
+      -1.0408340855860843e-17,
+      -0.22499999403953552
+    ],
+    "max": [
+      0.22499999403953552,
+      1.649999976158142,
+      0.22499999403953552
+    ],
+    "dimensions": {
+      "width": 0.44999998807907104,
+      "height": 1.649999976158142,
+      "depth": 0.44999998807907104
+    },
+    "space": "asset scene, node transforms applied"
+  },
+  "declaredSizeMeters": [
+    0.45,
+    1.65,
+    0.45
+  ],
+  "realFurnitureSizeMeters": null,
+  "standardSizeMeters": [
+    0.44999999458139583,
+    1.65,
+    0.44999999458139583
+  ],
+  "coordinateSystem": "right-handed",
+  "upAxis": "+Y",
+  "pivot": "runtime wrapper: bottom center; original file unchanged",
+  "scaleRecord": {
+    "unitConversion": 1,
+    "uniformCalibration": 1.000000014449611,
+    "baked": false,
+    "appliedOnceToFreshAssetChild": true
+  },
+  "dimensionConfidence": "design_dimensions",
+  "dimensionSource": "procedural geometry",
+  "preview": {
+    "type": "runtime_SpatialModelView",
+    "imageFile": null
+  },
+  "materials": "embedded glTF materials and images, original preserved",
+  "validationStatus": "design_geometry_checked",
+  "ratioDeviation": 1.2041342589697024e-08,
+  "originalImportTime": null,
+  "profileCreatedAt": "2026-11-22T02:45:52.292602+00:00"
+}

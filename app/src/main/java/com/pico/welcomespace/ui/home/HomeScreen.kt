@@ -35,14 +35,13 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Box(modifier = Modifier.fillMaxSize()) {
         when (state.selectedTab) {
-            HomeTab.SHOP -> ShopScreen()
-            HomeTab.PLANNER -> RoomPlannerScreen()
+            HomeTab.SHOP -> ShopScreen(
+                onNavigateToPlanner = { viewModel.onEvent(HomeEvent.TabSelected(HomeTab.PLANNER)) }
+            )
+            HomeTab.PLANNER -> RoomPlannerScreen(
+                onNavigateToShop = { viewModel.onEvent(HomeEvent.TabSelected(HomeTab.SHOP)) }
+            )
         }
-        HomeBottomTabs(
-            selectedTab = state.selectedTab,
-            onTabSelected = { viewModel.onEvent(HomeEvent.TabSelected(it)) },
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
     }
 }
 

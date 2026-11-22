@@ -15,6 +15,8 @@ fun mainApp(scope: SpatialAppScope) =
             }
         }
         Stage("FurnitureRoom") {
-            RoomStage()
+            PicoTheme {
+                RoomStage()
+            }
         }
     }

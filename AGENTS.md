@@ -2,7 +2,8 @@
 
 ## 项目概述
 
-这是一个基于 PICO Spatial SDK 的 Shared Space 示例项目，参考 GitHub 案例 [PICO-Spatial-SDK-Sample-WelcomeSpace](https://github.com/Pico-Developer/PICO-Spatial-SDK-Sample-WelcomeSpace/tree/main) 创建。
+这是一个基于 PICO Spatial SDK 的家具展示项目，参考 GitHub 案例 [PICO-Spatial-SDK-Sample-WelcomeSpace](https://github.com/Pico-Developer/PICO-Spatial-SDK-Sample-WelcomeSpace/tree/main) 创建。
+保留二维 DefaultWindowContainer 与独立 FurnitureRoom Stage，禁止嵌套。
 
 ## 技术栈
 
@@ -33,12 +34,30 @@ app/src/main/java/com/pico/welcomespace/
 ## 关键文件说明
 
 ### Main.kt
-应用入口点，使用 `DefaultWindowContainer { PicoTheme { HomeStage() } }`。
+应用入口点，使用 `DefaultWindowContainer { PicoTheme { HomeStage() } }`，
+以及平级 `Stage("FurnitureRoom") { PicoTheme { RoomStage() } }`。
 
 ### content/HomeStage.kt
-保留原有入口名称，转接 `ShopScreen()`。电商页包含搜索、分类、收藏、
-购物袋计数和嵌入式 `sofa.glb` 预览；商品和价格仅用于本地演示，
+保留原有入口名称，经 HomeScreen 转接家具页和我的户型页。电商页包含搜索、分类、收藏、
+购物袋计数和六件家具预览；商品和价格仅用于本地演示，
 没有真实订单或支付。
+
+### 标准房间与家具
+- `domain/model/FloorPlanRoom.kt`：净尺寸 4×5×2.5 m，四墙封闭，无门窗。
+- `ui/planner/components/StandardRoomOverview.kt`：同源比例鸟瞰，旧识别编辑流程不再作为界面入口。
+- `ui/shop/FurnitureScene.kt`：底部中心实例节点、模型等比缩放、可重新抓取和绕 Y 轴旋转。
+- `domain/usecase/NormalizeFurnitureSizeUseCase.kt`：单位转换和尺寸校准分别处理，比例偏差超过25%拒绝。
+- `tools/generate_demo_assets.py`：生成地毯、落地灯、电视柜及标准房间，使用 bbox 工具校验；不修改旧模型。
+- `app/src/main/assets/profiles/`：构建期资产记录。不是完整运行时外部模型导入系统。
+
+### 本机 Tripo 配置
+Key 只填写 `.private/tripo.json`，由 `tools/tripo_gateway.py` 读取。
+禁止注入 BuildConfig、assets 或提交 Git。代理默认不允许付费生成，Android 上传/入库尚未接通。
+详见 `本轮更新与材质接入说明.md`。不自动提交或推送代码。
+
+### 本轮验证边界
+36 项 JVM 单测、2 项本地代理离线测试及构建通过；模拟器可安装启动并显示房间。
+真机射线拖入、旋转及重复抓取仍需人工验收，不得仅凭编译通过声称手势验证完成。
 
 ### platform/LaunchActivity.kt
 应用启动 Activity，处理权限和初始化。

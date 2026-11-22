@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "assetId": "rug-01",
+  "name": "\u7ec7\u7eb9\u51e0\u4f55\u5730\u6bef",
+  "category": "RUG",
+  "file": "woven_rug.glb",
+  "sha256": "8ec94b2b54021344b6b296f1a9b5a57ef8809076a24f85f02019a4152a31ed94",
+  "source": "procedural_demo",
+  "format": "GLB",
+  "originalUnit": "meter",
+  "unitEvidence": "glTF 2.0 specification",
+  "originalSizeMeters": [
+    2.0,
+    0.014999999664723873,
+    3.0
+  ],
+  "boundingBox": {
+    "min": [
+      -1.0,
+      0.0,
+      -1.5
+    ],
+    "max": [
+      1.0,
+      0.014999999664723873,
+      1.5
+    ],
+    "dimensions": {
+      "width": 2.0,
+      "height": 0.014999999664723873,
+      "depth": 3.0
+    },
+    "space": "asset scene, node transforms applied"
+  },
+  "declaredSizeMeters": [
+    2,
+    0.015,
+    3
+  ],
+  "realFurnitureSizeMeters": null,
+  "standardSizeMeters": [
+    2.0,
+    0.014999999664723873,
+    3.0
+  ],
+  "coordinateSystem": "right-handed",
+  "upAxis": "+Y",
+  "pivot": "runtime wrapper: bottom center; original file unchanged",
+  "scaleRecord": {
+    "unitConversion": 1,
+    "uniformCalibration": 1.0,
+    "baked": false,
+    "appliedOnceToFreshAssetChild": true
+  },
+  "dimensionConfidence": "design_dimensions",
+  "dimensionSource": "procedural geometry",
+  "preview": {
+    "type": "runtime_SpatialModelView",
+    "imageFile": null
+  },
+  "materials": "embedded glTF materials and images, original preserved",
+  "validationStatus": "design_geometry_checked",
+  "ratioDeviation": 2.2351741790771484e-08,
+  "originalImportTime": null,
+  "profileCreatedAt": "2026-11-22T02:45:52.291164+00:00"
+}

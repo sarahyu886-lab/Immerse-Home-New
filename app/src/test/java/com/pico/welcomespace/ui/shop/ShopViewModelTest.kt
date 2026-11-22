@@ -16,7 +16,7 @@ class ShopViewModelTest {
     @Test
     fun initialStateShowsSofa() {
         val state = viewModel().state.value
-        assertEquals(3, state.visibleProducts.size)
+        assertEquals(6, state.visibleProducts.size)
         assertEquals("sofa-02", state.selectedProductId)
     }
 
@@ -42,15 +42,18 @@ class ShopViewModelTest {
     }
 
     @Test
-    fun floorPlanRoomUsesMeterScaleFromReferenceImage() {
+    fun fixedRoomHasExactClearDimensionsAndFourClosedWalls() {
         val plan = FloorPlanRoom.demoPlan
-        assertEquals(11f, plan.widthMeters, 0.001f)
-        assertEquals(11.85f, plan.depthMeters, 0.001f)
-        assertTrue(plan.walls.size >= 40)
-        assertTrue(plan.surfaces.any { it.label == "起居室地面" })
-        assertTrue(plan.surfaces.any { it.label == "书房地面" })
-        assertTrue(plan.openings.count { it.kind == RoomOpeningKind.DOOR } >= 8)
-        assertTrue(plan.openings.count { it.kind == RoomOpeningKind.WINDOW } >= 8)
+        assertEquals(4f, plan.widthMeters, 0.001f)
+        assertEquals(5f, plan.depthMeters, 0.001f)
+        assertEquals(2.5f, plan.ceilingHeight, 0.001f)
+        assertEquals(4, plan.walls.size)
+        assertEquals(1, plan.surfaces.size)
+        assertTrue(plan.openings.isEmpty())
+        val east = plan.walls.first { it.id == "east" }
+        assertEquals(2f, east.centerX - east.width / 2f, .0001f)
+        val south = plan.walls.first { it.id == "south" }
+        assertEquals(2.5f, south.centerZ - south.depth / 2f, .0001f)
     }
 
     @Test
@@ -60,12 +63,19 @@ class ShopViewModelTest {
         val lamp = products.first { it.id == "lamp-01" }
 
         val sofaTarget = FloorPlanRoom.choosePlacement(sofa, x = -0.4f, z = 1.2f)
-        val lampTarget = FloorPlanRoom.choosePlacement(lamp, x = -1.6f, z = 0.75f)
+        val table = com.pico.welcomespace.domain.model.RoomSurface(
+            "test-table", "测试桌面", RoomSurfaceKind.TABLE, 0f, 0f, 1.5f, 1f, .72f)
+        val plan = FloorPlanRoom.demoPlan.copy(surfaces = FloorPlanRoom.demoPlan.surfaces + table)
+        val lampTarget = FloorPlanRoom.choosePlacement(lamp, x = -1.6f, z = 0.75f, plan = plan)
 
         assertEquals(RoomSurfaceKind.FLOOR, sofaTarget?.surface?.kind)
         assertEquals(RoomSurfaceKind.TABLE, lampTarget?.surface?.kind)
         assertEquals(0f, sofaTarget?.y ?: -1f, 0.001f)
         assertTrue((lampTarget?.y ?: 0f) > 0.5f)
+        assertEquals(RoomSurfaceKind.FLOOR, FloorPlanRoom.choosePlacement(lamp, 0f, 0f)?.surface?.kind)
+        val floorLamp = products.first { it.id == "floor-lamp-01" }
+        assertEquals(RoomSurfaceKind.FLOOR,
+            FloorPlanRoom.choosePlacement(floorLamp, 0f, 0f, plan)?.surface?.kind)
     }
 
     @Test
@@ -98,9 +108,9 @@ class ShopViewModelTest {
         val vm = viewModel()
         vm.onEvent(ShopEvent.CategorySelected(ShopCategory.LIGHTING))
         assertEquals("lamp-01", vm.state.value.selectedProductId)
-        assertEquals(1, vm.state.value.visibleProducts.size)
+        assertEquals(2, vm.state.value.visibleProducts.size)
         vm.onEvent(ShopEvent.CategorySelected(ShopCategory.ALL))
-        assertEquals(3, vm.state.value.visibleProducts.size)
+        assertEquals(6, vm.state.value.visibleProducts.size)
         assertEquals("sofa-02", vm.state.value.selectedProductId)
     }
 

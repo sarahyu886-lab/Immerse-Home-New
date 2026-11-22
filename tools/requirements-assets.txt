@@ -1,0 +1,5 @@
+trimesh==4.12.2
+numpy==2.0.2
+networkx==3.2.1
+pillow==11.3.0
+usd-core>=22.11
