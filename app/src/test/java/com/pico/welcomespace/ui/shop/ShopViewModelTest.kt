@@ -7,6 +7,7 @@ import com.pico.welcomespace.domain.model.ShopCategory
 import com.pico.welcomespace.domain.model.RoomSurfaceKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -254,5 +255,148 @@ class ShopViewModelTest {
         assertFalse(vm.state.value.showingCart)
         assertFalse(vm.state.value.showingPayment)
         assertEquals(2699L, vm.state.value.cartTotal)
+    }
+
+    // ===== 拖拽桥接：面板起手 → 房间跟随 → 落位/取消 =====
+
+    private fun drainGestures() {
+        while (RoomPlacement.gestures.tryReceive().isSuccess) {
+            // 清空上一次会话残留的手势事件
+        }
+    }
+
+    @Test
+    fun placementDragStartEntersFollowingAndRoutesEntityToRoomStage() {
+        val vm = viewModel()
+        RoomPlacement.updateAvailability(true)
+        drainGestures()
+
+        vm.onEvent(ShopEvent.PlacementDragStarted("sofa-02", 0.4f, 0f, 1.2f))
+
+        assertEquals("sofa-02", vm.state.value.placingProductId)
+        val gesture = RoomPlacement.gestures.tryReceive().getOrNull()
+        assertTrue(gesture is PlacementGesture.Start)
+        gesture as PlacementGesture.Start
+        assertEquals("sofa-02", gesture.product.id)
+        assertEquals(0.4f, gesture.position.x, 0.0001f)
+        assertEquals(1.2f, gesture.position.z, 0.0001f)
+    }
+
+    @Test
+    fun placementDragReleaseDropsEntityAndRestoresStrongPanel() {
+        val vm = viewModel()
+        RoomPlacement.updateAvailability(true)
+        drainGestures()
+        vm.onEvent(ShopEvent.PlacementDragStarted("sofa-02", 0f, 0f, 0f))
+        drainGestures()
+
+        vm.onEvent(ShopEvent.PlacementDragReleased(0.8f, 0f, 1.5f))
+
+        assertNull(vm.state.value.placingProductId)
+        val gesture = RoomPlacement.gestures.tryReceive().getOrNull()
+        assertTrue(gesture is PlacementGesture.Drop)
+        gesture as PlacementGesture.Drop
+        assertEquals(0.8f, gesture.position.x, 0.0001f)
+        assertEquals(1.5f, gesture.position.z, 0.0001f)
+    }
+
+    @Test
+    fun placementDragCancelRecyclesEntityAndResetsState() {
+        val vm = viewModel()
+        RoomPlacement.updateAvailability(true)
+        drainGestures()
+        vm.onEvent(ShopEvent.PlacementDragStarted("lamp-01", 0f, 0f, 0f))
+        drainGestures()
+
+        vm.onEvent(ShopEvent.PlacementDragCancelled)
+
+        assertNull(vm.state.value.placingProductId)
+        assertEquals(PlacementGesture.Cancel, RoomPlacement.gestures.tryReceive().getOrNull())
+    }
+
+    @Test
+    fun placementMoveFlowsToRoomOnlyWhileFollowing() {
+        val vm = viewModel()
+        RoomPlacement.updateAvailability(true)
+        drainGestures()
+
+        vm.onEvent(ShopEvent.PlacementDragMoved(1f, 0f, 1f))
+        assertNull(vm.state.value.placingProductId)
+        assertNull(RoomPlacement.gestures.tryReceive().getOrNull())
+
+        vm.onEvent(ShopEvent.PlacementDragStarted("sofa-02", 0f, 0f, 0f))
+        drainGestures()
+        vm.onEvent(ShopEvent.PlacementDragMoved(1f, 0f, 1f))
+        val gesture = RoomPlacement.gestures.tryReceive().getOrNull()
+        assertTrue(gesture is PlacementGesture.Move)
+        assertEquals(1f, (gesture as PlacementGesture.Move).position.x, 0.0001f)
+    }
+
+    @Test
+    fun secondStartWhileFollowingIsRejectedWithoutNewGesture() {
+        val vm = viewModel()
+        RoomPlacement.updateAvailability(true)
+        drainGestures()
+        vm.onEvent(ShopEvent.PlacementDragStarted("sofa-02", 0f, 0f, 0f))
+        drainGestures()
+
+        vm.onEvent(ShopEvent.PlacementDragStarted("chair-01", 1f, 0f, 1f))
+
+        assertEquals("sofa-02", vm.state.value.placingProductId)
+        assertNull(RoomPlacement.gestures.tryReceive().getOrNull())
+    }
+
+    @Test
+    fun placementStartRejectedWhenRoomStageIsNotReady() {
+        val vm = viewModel()
+        RoomPlacement.updateAvailability(false)
+        drainGestures()
+
+        vm.onEvent(ShopEvent.PlacementDragStarted("sofa-02", 0f, 0f, 0f))
+
+        assertNull(vm.state.value.placingProductId)
+        assertNull(RoomPlacement.gestures.tryReceive().getOrNull())
+    }
+
+    @Test
+    fun unknownProductNeverEntersFollowing() {
+        val vm = viewModel()
+        RoomPlacement.updateAvailability(true)
+        drainGestures()
+
+        vm.onEvent(ShopEvent.PlacementDragStarted("missing", 0f, 0f, 0f))
+
+        assertNull(vm.state.value.placingProductId)
+        assertNull(RoomPlacement.gestures.tryReceive().getOrNull())
+    }
+
+    @Test
+    fun releaseWithoutFollowingSessionIsIgnored() {
+        val vm = viewModel()
+        RoomPlacement.updateAvailability(true)
+        drainGestures()
+
+        vm.onEvent(ShopEvent.PlacementDragReleased(0f, 0f, 0f))
+        assertNull(vm.state.value.placingProductId)
+        vm.onEvent(ShopEvent.PlacementDragCancelled)
+        assertNull(vm.state.value.placingProductId)
+        assertNull(RoomPlacement.gestures.tryReceive().getOrNull())
+    }
+
+    @Test
+    fun fullBridgeLifecycleStartFollowReleaseThenRestart() {
+        val vm = viewModel()
+        RoomPlacement.updateAvailability(true)
+        drainGestures()
+
+        vm.onEvent(ShopEvent.PlacementDragStarted("sofa-02", 0f, 0f, 0f))
+        assertEquals("sofa-02", vm.state.value.placingProductId)
+        vm.onEvent(ShopEvent.PlacementDragMoved(-0.5f, 0f, 0.8f))
+        vm.onEvent(ShopEvent.PlacementDragReleased(-0.5f, 0f, 0.8f))
+        assertNull(vm.state.value.placingProductId)
+
+        // 落位后可立即开启下一次拖拽会话
+        vm.onEvent(ShopEvent.PlacementDragStarted("chair-01", 0f, 0f, 0f))
+        assertEquals("chair-01", vm.state.value.placingProductId)
     }
 }
