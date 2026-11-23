@@ -42,7 +42,10 @@ data class RoomOpening(
     val centerX: Float,
     val centerZ: Float,
     val width: Float,
-    val depth: Float
+    val depth: Float,
+    val heightMeters: Float = 2.1f,
+    val sillMeters: Float = 0f,
+    val swingFlipped: Boolean = false
 )
 
 data class RoomPlacementTarget(
@@ -83,6 +86,60 @@ object FloorPlanRoom {
                 0f, 0f, PlanWidthMeters, PlanDepthMeters, 0f)
         ),
         ceilingHeight = RoomHeightMeters
+    )
+
+    /**
+     * 示例户型（模拟数据，非真实识别结果）：6 × 4 米，六面墙，
+     * 客厅 / 卧室 / 厨房三个房间，含 2 扇窗与 3 扇门。
+     */
+    val simulatedSamplePlan: VirtualRoomPlan = VirtualRoomPlan(
+        name = "示例户型 · 6 × 4 米（模拟）",
+        widthMeters = 6f,
+        depthMeters = 4f,
+        walls = listOf(
+            RoomWall("sample-north", 0f, -2.06f, 6.24f, 0.12f, 2.7f),
+            RoomWall("sample-south", 0f, 2.06f, 6.24f, 0.12f, 2.7f),
+            RoomWall("sample-west", -3.06f, 0f, 0.12f, 4f, 2.7f),
+            RoomWall("sample-east", 3.06f, 0f, 0.12f, 4f, 2.7f),
+            RoomWall("sample-divider-v", 1.9f, -0.7f, 0.12f, 2.6f, 2.7f),
+            RoomWall("sample-divider-h", -0.55f, 0.6f, 4.9f, 0.12f, 2.7f)
+        ),
+        surfaces = listOf(
+            RoomSurface("sample-room-living", "客厅", RoomSurfaceKind.FLOOR, -0.55f, -0.7f, 4.9f, 2.6f, 0f),
+            RoomSurface("sample-room-kitchen", "厨房", RoomSurfaceKind.FLOOR, -0.55f, 1.3f, 4.9f, 1.4f, 0f),
+            RoomSurface("sample-room-bed", "卧室", RoomSurfaceKind.FLOOR, 2.45f, 0f, 1.1f, 4f, 0f)
+        ),
+        openings = listOf(
+            RoomOpening("sample-window-living", "客厅窗", RoomOpeningKind.WINDOW,
+                -1.5f, -2.06f, 1.5f, 0.12f, heightMeters = 1.2f, sillMeters = 0.9f),
+            RoomOpening("sample-window-kitchen", "厨房窗", RoomOpeningKind.WINDOW,
+                -3.06f, 1.3f, 0.12f, 0.9f, heightMeters = 1.2f, sillMeters = 0.9f),
+            RoomOpening("sample-door-entry", "入户门", RoomOpeningKind.DOOR,
+                0.8f, 2.06f, 0.9f, 0.12f),
+            RoomOpening("sample-door-kitchen", "厨房门", RoomOpeningKind.DOOR,
+                0.8f, 0.6f, 0.9f, 0.12f),
+            RoomOpening("sample-door-bed", "卧室门", RoomOpeningKind.DOOR,
+                1.9f, -0.4f, 0.12f, 0.9f)
+        ),
+        ceilingHeight = 2.7f
+    )
+
+    /**
+     * 含 2 处问题的示例数据（模拟）：东墙断开导致墙体未闭合 +
+     * 入户门与客厅窗发生重叠，用于 P10 检查户型问题的演示。
+     */
+    val simulatedIssuePlan: VirtualRoomPlan = simulatedSamplePlan.copy(
+        name = "示例户型 · 待修正（模拟）",
+        walls = simulatedSamplePlan.walls.map { wall ->
+            if (wall.id == "sample-east") {
+                wall.copy(centerZ = 1f, depth = 2f)
+            } else {
+                wall
+            }
+        },
+        openings = simulatedSamplePlan.openings +
+            RoomOpening("sample-door-duplicate", "重叠门", RoomOpeningKind.DOOR,
+                -1f, -2.06f, 0.9f, 0.12f)
     )
 
     fun choosePlacement(

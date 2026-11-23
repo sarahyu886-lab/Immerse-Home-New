@@ -4,22 +4,20 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,74 +28,99 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.pico.spatial.ui.design.Button
-import com.pico.spatial.ui.design.ButtonDefaults
-import com.pico.spatial.ui.design.PicoTheme
-import com.pico.spatial.ui.design.Text
 import com.pico.spatial.ui.platform.containers.OpenStageResult
 import com.pico.spatial.ui.platform.containers.StageStyle
 import com.pico.spatial.ui.platform.containers.openStage
-import com.pico.welcomespace.domain.model.RoomOpeningKind
-import com.pico.welcomespace.domain.model.RoomSurfaceKind
+import com.pico.spatial.ui.design.Text
+import com.pico.welcomespace.R
+import com.pico.welcomespace.domain.model.FloorPlanRoom
 import com.pico.welcomespace.domain.model.VirtualRoomPlan
 import com.pico.welcomespace.domain.usecase.FloorPlanInputSource
+import com.pico.welcomespace.ui.common.ImmerseHomeLogo
+import com.pico.welcomespace.ui.planner.components.HfDangerButton
+import com.pico.welcomespace.ui.planner.components.HfDemoLink
+import com.pico.welcomespace.ui.planner.components.HfGlassPanel
+import com.pico.welcomespace.ui.planner.components.HfNavPill
+import com.pico.welcomespace.ui.planner.components.HfNumberInput
+import com.pico.welcomespace.ui.planner.components.HfPrimaryButton
+import com.pico.welcomespace.ui.planner.components.HfSecondaryButton
+import com.pico.welcomespace.ui.planner.components.HfToast
+import com.pico.welcomespace.ui.planner.components.HfToolPanel
+import com.pico.welcomespace.ui.planner.components.HfType
 import com.pico.welcomespace.ui.shop.RoomPlacement
-import com.pico.welcomespace.ui.planner.components.StandardRoomOverview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.max
-
-private val PlannerGlass = Color(0x94FFF8ED) // design-style: fixed-figma-color 保留现有 Figma 面板配色。
-private val PlannerGlassStrong = Color(0xB3FFF8ED) // design-style: fixed-figma-color 保留现有 Figma 面板配色。
-private val PlannerAccent = Color(0xE6FFBF4A) // design-style: fixed-figma-color 用户指定黄色主操作。
-private val PlannerText = Color(0xFF292722) // design-style: fixed-figma-color 保留现有浅色面板前景。
-private val PlannerTextMuted = Color(0xFF6E655B) // design-style: fixed-figma-color 保留现有浅色面板前景。
-private val PlannerBorder = Color(0xA6FFFFFF) // design-style: fixed-figma-color 保留现有面板描边。
-private val PlannerDanger = Color(0xFFAD5F4B) // design-style: fixed-figma-color 保留原设计删除提示色。
+import kotlin.math.min
 
 @Composable
 fun RoomPlannerScreen(
-    modifier: Modifier = Modifier,
-    onNavigateToShop: () -> Unit = {},
-    viewModel: RoomPlannerViewModel = viewModel()
+    viewModel: RoomPlannerViewModel = remember { RoomPlannerViewModel() },
+    onNavigateToShop: () -> Unit = {}
 ) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    Box(modifier = modifier.fillMaxSize()) {
-        PlannerShell(
-            title = "我的户型",
-            statusMessage = "",
-            onNavigateToShop = onNavigateToShop,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            StandardRoomOverview(
-                plan = RoomPlannerSession.activePlan,
-                onEnterRoom = {
-                    scope.launch {
-                        runCatching {
-                            if (context.openStage("FurnitureRoom", style = StageStyle.Mixed) !is OpenStageResult.Allowed) {
-                                RoomPlacement.report("虚拟样板间不可用，请检查 Full Stage 能力")
-                            }
-                        }.onFailure {
-                            RoomPlacement.report("无法打开虚拟样板间，请在支持 Stage 的环境运行")
-                        }
-                    }
+    val enterRoom: () -> Unit = {
+        scope.launch {
+            runCatching {
+                if (context.openStage("FurnitureRoom", style = StageStyle.Mixed) !is OpenStageResult.Allowed) {
+                    RoomPlacement.report("虚拟样板间不可用，请检查 Full Stage 能力")
                 }
-            )
+            }.onFailure {
+                RoomPlacement.report("无法打开虚拟样板间，请在支持 Stage 的环境运行")
+            }
+        }
+    }
+
+    // 自动流转：P03 处理中 / P12 生成中（模拟延时完成）
+    LaunchedEffect(state.step) {
+        when (state.step) {
+            PlannerStep.PROCESSING -> {
+                delay(1600)
+                viewModel.onEvent(RoomPlannerEvent.ProcessingCompleted)
+            }
+            PlannerStep.GENERATING -> {
+                delay(2200)
+                viewModel.onEvent(RoomPlannerEvent.GenerationCompleted)
+            }
+            else -> Unit
+        }
+    }
+    // toast 自动消失
+    LaunchedEffect(state.toast) {
+        if (state.toast != null) {
+            delay(2800)
+            viewModel.onEvent(RoomPlannerEvent.HideToast)
+        }
+    }
+
+    PlannerShell(
+        title = state.step.title,
+        state = state,
+        onEvent = viewModel::onEvent,
+        onNavigateToShop = onNavigateToShop,
+        onEnterRoom = enterRoom
+    ) { onEvent ->
+        when (state.step) {
+            PlannerStep.UPLOAD -> UploadStepContent()
+            PlannerStep.SELECT_SOURCE -> SelectSourceStepContent(onEvent)
+            PlannerStep.PROCESSING -> ProcessingStepContent(onEvent)
+            PlannerStep.CALIBRATE -> CalibrateStepContent(state, onEvent)
+            PlannerStep.EDIT -> EditStepContent(state, onEvent)
+            PlannerStep.GENERATING -> GeneratingStepContent(onEvent)
+            PlannerStep.RESULT -> ResultStepContent(state, onEvent, enterRoom, onNavigateToShop)
+            PlannerStep.ERROR -> ErrorStepContent(onEvent)
         }
     }
 }
@@ -105,825 +128,1046 @@ fun RoomPlannerScreen(
 @Composable
 private fun PlannerShell(
     title: String,
-    statusMessage: String,
+    state: RoomPlannerUiState,
+    onEvent: (RoomPlannerEvent) -> Unit,
     onNavigateToShop: () -> Unit,
-    modifier: Modifier = Modifier,
-    content: @Composable BoxScope.() -> Unit
+    onEnterRoom: () -> Unit,
+    content: @Composable ((RoomPlannerEvent) -> Unit) -> Unit
 ) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
+    val showActionBar = state.step in listOf(
+        PlannerStep.UPLOAD,
+        PlannerStep.SELECT_SOURCE,
+        PlannerStep.CALIBRATE,
+        PlannerStep.EDIT
+    )
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
                 .fillMaxHeight(0.90f)
         ) {
-            GlassPanel(
+            // 品牌标题衬底
+            HfGlassPanel(
+                fill = PlannerHfColors.HeaderFill,
+                border = PlannerHfColors.GlassBorder,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.075f)
-                    .align(Alignment.TopCenter),
-                radius = 18.dp
+                    .weight(0.075f)
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-                    contentAlignment = Alignment.Center
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "Immerse Home  /  $title", color = PlannerText)
+                    ImmerseHomeLogo(modifier = Modifier.size(34.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Immerse Home  /  $title",
+                        color = PlannerHfColors.TextPrimary,
+                        style = HfType.Label
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "演示数据",
+                        color = PlannerHfColors.AuxiliaryGray,
+                        style = HfType.Note
+                    )
                 }
             }
-            GlassPanel(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.80f)
-                    .align(Alignment.TopCenter)
-                    .padding(top = 54.dp),
-                radius = 18.dp
-            ) {
-                content()
+            Spacer(modifier = Modifier.height(8.dp))
+            // Glass 主窗口：内容区 → 操作行 → 底部导航行（面板最后一行，独立底栏）
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                HfGlassPanel(
+                    fill = PlannerHfColors.GlassFill,
+                    border = PlannerHfColors.GlassBorder,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) {
+                            content(onEvent)
+                            // toast（内容区左下，独立区不与导航/操作行交叠）
+                            state.toast?.let { message ->
+                                HfToast(
+                                    message = message,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(start = 24.dp, bottom = 12.dp)
+                                )
+                            }
+                        }
+                        // 底部操作条（导航行上方）
+                        if (showActionBar) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(end = 24.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                HfSecondaryButton(
+                                    text = "上传户型图",
+                                    onClick = { onEvent(RoomPlannerEvent.OpenImportOptions) },
+                                    leadingIconRes = R.drawable.ic_file_upload
+                                )
+                                val generateEnabled = isGenerateEnabled(state)
+                                HfPrimaryButton(
+                                    text = "生成模拟房间",
+                                    onClick = { onEvent(RoomPlannerEvent.GenerateRoom) },
+                                    enabled = generateEnabled,
+                                    leadingIconRes = R.drawable.ic_house_add
+                                )
+                            }
+                        }
+                        // 底部导航 pills：面板最底一行，居中
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            HfNavPill(
+                                label = "我的户型",
+                                iconRes = R.drawable.ic_nav_home,
+                                selected = true,
+                                onClick = {}
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            HfNavPill(
+                                label = "选家具",
+                                iconRes = R.drawable.ic_nav_couch,
+                                selected = false,
+                                onClick = onNavigateToShop
+                            )
+                        }
+                    }
+                }
+                // 模态弹窗 P15–P19（覆盖整个面板含导航栏）
+                state.dialog?.let {
+                    PlannerDialogOverlay(
+                        state = state,
+                        onEvent = onEvent
+                    )
+                }
             }
-            InternalBottomTabs(
-                onNavigateToShop = onNavigateToShop,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 56.dp)
-            )
         }
     }
 }
 
+/* ------------------------------- P01 上传 ------------------------------- */
+
 @Composable
-private fun UploadStep(
-    onImportClick: () -> Unit,
-    onShowDialog: (PlannerDialog) -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 34.dp, vertical = 30.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+private fun UploadStepContent() {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 34.dp, vertical = 24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        Row(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(32.dp),
-            verticalAlignment = Alignment.CenterVertically
+        HfGlassPanel(
+            fill = PlannerHfColors.CanvasPanel,
+            border = PlannerHfColors.GlassBorder,
+            modifier = Modifier
+                .weight(0.42f)
+                .fillMaxHeight(0.84f)
         ) {
-            GlassPanel(
+            // 上传入口容器：内边距保证 ≥24dp 呼吸空间，卡片固定比例约束避免压边/溢出
+            Box(
                 modifier = Modifier
-                    .weight(0.43f)
-                    .fillMaxHeight(0.8f),
-                strong = true,
-                radius = 20.dp
+                    .fillMaxSize()
+                    .padding(horizontal = 28.dp, vertical = 24.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(18.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    UploadIllustration()
-                }
-            }
-            Column(
-                modifier = Modifier.weight(0.57f),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text("让家的轮廓，\n变成立体空间", color = PlannerText)
-                Spacer(modifier = Modifier.height(18.dp))
-                Text(
-                    "上传户型图，在图上调整墙、门和窗。\n确认尺寸后，生成可以进入的模拟房间。",
-                    color = PlannerText.copy(alpha = 0.88f)
-                )
-                Spacer(modifier = Modifier.height(18.dp))
-                Text(
-                    "支持 JPG / PNG · 建议使用清晰的正视平面图",
-                    color = PlannerTextMuted
+                UploadIllustration(
+                    modifier = Modifier
+                        .sizeIn(maxWidth = 240.dp, maxHeight = 240.dp)
+                        .aspectRatio(1f)
                 )
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.weight(0.58f),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                "上传平面图    →    图上编辑    →    生成房间",
-                color = PlannerText,
-                modifier = Modifier.weight(1f)
+                text = "让家的轮廓，\n变成立体空间",
+                color = PlannerHfColors.DeepBrown,
+                style = HfType.Section
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                PlannerSecondaryButton(text = "上传户型图", onClick = onImportClick)
-                PlannerSecondaryButton(text = "生成模拟房间", onClick = {}, enabled = false)
-            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "上传一张室内平面图，先校准真实尺寸，再直接在图上编辑墙、门、窗，最后生成 3D 模拟房间。",
+                color = PlannerHfColors.DeepBrown,
+                style = HfType.Note
+            )
+            Text(
+                text = "上传完成后会自动识别墙体轮廓，你可以在图上继续调整，并进入立体空间试摆家具。",
+                color = PlannerHfColors.DeepBrown,
+                style = HfType.Note
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "上传平面图    →    图上编辑    →    生成房间",
+                color = PlannerHfColors.TextPrimary,
+                style = HfType.Note.copy(fontWeight = FontWeight.Medium)
+            )
         }
     }
 }
 
 @Composable
-private fun CalibrateStep(
-    plan: VirtualRoomPlan,
-    onImportClick: () -> Unit,
-    onContinue: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 34.dp, vertical = 26.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Text("校准真实尺寸", color = PlannerText)
-        FloorPlanCanvas(
-            plan = plan,
-            selection = null,
-            pan = Offset.Zero,
-            modifier = Modifier.weight(1f).fillMaxWidth()
+private fun UploadIllustration(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        // 白色卡片（占满画布，比例由外层 aspectRatio(1f) 固定）
+        drawRoundRect(
+            color = Color.White.copy(alpha = 0.55f),
+            cornerRadius = CornerRadius(26f, 26f)
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MetricCard(label = "宽度", value = String.format("%.2f m", plan.widthMeters))
-                MetricCard(label = "进深", value = String.format("%.2f m", plan.depthMeters))
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                PlannerSecondaryButton(text = "重新上传", onClick = onImportClick)
-                PlannerPrimaryButton(text = "开始图上编辑", onClick = onContinue)
-            }
-        }
+        drawRoundRect(
+            color = PlannerHfColors.Wall.copy(alpha = 0.55f),
+            cornerRadius = CornerRadius(26f, 26f),
+            style = Stroke(width = 3f)
+        )
+        // 上传入口：圆形琥珀按钮 + 上传图标，整体在安全区内居中，
+        // 与卡片边缘保持 ≥24dp 呼吸空间
+        val safe = 24.dp.toPx()
+        val innerMin = min(size.width, size.height) - safe * 2f
+        val circleR = innerMin * 0.34f
+        val cx = size.width / 2f
+        val cy = size.height / 2f - circleR * 0.34f
+        drawCircle(
+            color = PlannerHfColors.PrimaryContainer,
+            radius = circleR,
+            center = Offset(cx, cy)
+        )
+        val r = circleR * 0.45f
+        val stroke = r * 0.28f
+        drawLine(
+            color = PlannerHfColors.ButtonText,
+            start = Offset(cx, cy + r),
+            end = Offset(cx, cy - r),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = PlannerHfColors.ButtonText,
+            start = Offset(cx - r * 0.62f, cy - r * 0.28f),
+            end = Offset(cx, cy - r),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = PlannerHfColors.ButtonText,
+            start = Offset(cx + r * 0.62f, cy - r * 0.28f),
+            end = Offset(cx, cy - r),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+        drawRoundRect(
+            color = PlannerHfColors.Wall.copy(alpha = 0.45f),
+            topLeft = Offset(cx - r * 1.9f, cy + circleR + r * 0.55f),
+            size = Size(r * 3.8f, r * 0.5f),
+            cornerRadius = CornerRadius(r * 0.25f, r * 0.25f)
+        )
     }
 }
 
+/* ------------------------------ P02 选择来源 ----------------------------- */
+
 @Composable
-private fun EditStep(
-    state: RoomPlannerUiState,
-    onEvent: (RoomPlannerEvent) -> Unit,
-    onImportClick: () -> Unit
-) {
-    var pan by remember(state.generatedPlan) { mutableStateOf(Offset.Zero) }
-    val issues = remember(state.generatedPlan) { buildPlanIssues(state.generatedPlan) }
+private fun SelectSourceStepContent(onEvent: (RoomPlannerEvent) -> Unit) {
+    val filePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            onEvent(RoomPlannerEvent.StartImport(FloorPlanInputSource.UPLOAD))
+        }
+    }
+    var pan by remember { mutableStateOf(Offset.Zero) }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 34.dp, vertical = 24.dp)
+    ) {
+        FloorPlanCanvas(
+            plan = FloorPlanRoom.simulatedSamplePlan,
+            selection = null,
+            pan = pan,
+            showHandles = false,
+            modifier = Modifier
+                .fillMaxSize()
+                .clipRounded(),
+            onTap = { _, _ -> },
+            onLongPress = { _, _ -> },
+            onPan = { pan += it }
+        )
+        Text(
+            text = "示例户型 · 模拟数据",
+            color = PlannerHfColors.AuxiliaryGray,
+            style = HfType.Note,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 10.dp, end = 14.dp)
+        )
+        HfToolPanel(
+            title = "上传户型图",
+            description = "选择清晰的 JPG / PNG；相机不可用时仍可选文件。",
+            buttonRow = {
+                HfSecondaryButton(
+                    text = "选择文件",
+                    onClick = { filePicker.launch(arrayOf("image/*")) },
+                    leadingIconRes = R.drawable.ic_file_upload
+                )
+                HfSecondaryButton(
+                    text = "拍照上传",
+                    onClick = { onEvent(RoomPlannerEvent.ShowToast(TOAST_CAMERA_UNAVAILABLE)) }
+                )
+                HfPrimaryButton(
+                    text = "使用示例",
+                    onClick = { onEvent(RoomPlannerEvent.UseSamplePlan) }
+                )
+            },
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 56.dp)
+                .width(454.dp)
+        )
+    }
+}
+
+/* ------------------------------- P03 处理中 ------------------------------ */
+
+@Composable
+private fun ProcessingStepContent(onEvent: (RoomPlannerEvent) -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "正在提取墙体与门窗…",
+            color = PlannerHfColors.TextPrimary,
+            style = HfType.Section
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "上传完成 → 提取轮廓 → 检查开口\n请稍候，完成后可以直接在图上修正。",
+            color = PlannerHfColors.TextSecondary,
+            textAlign = TextAlign.Center,
+            style = HfType.Label
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        HfSecondaryButton(
+            text = "取消处理",
+            onClick = { onEvent(RoomPlannerEvent.CancelBusyStep) },
+            leadingIconRes = R.drawable.ic_arrow_left
+        )
+    }
+}
+
+/* -------------------------------- P04 校准 ------------------------------- */
+
+@Composable
+private fun CalibrateStepContent(
+    state: RoomPlannerUiState,
+    onEvent: (RoomPlannerEvent) -> Unit
+) {
+    var pan by remember { mutableStateOf(Offset.Zero) }
+    var lengthText by remember(state.generatedPlan.id()) { mutableStateOf("6.00") }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 34.dp, vertical = 24.dp)
     ) {
         FloorPlanCanvas(
             plan = state.generatedPlan,
-            selection = state.selected,
+            selection = calibrationWallSelection(state.generatedPlan),
             pan = pan,
-            onTap = { x, z -> onEvent(RoomPlannerEvent.SelectElementAt(x, z)) },
-            onLongPress = { x, z -> onEvent(RoomPlannerEvent.AddWallAt(x, z)) },
-            onPan = { delta -> pan += delta },
-            modifier = Modifier.weight(1f).fillMaxWidth()
-        )
-        Text(
-            "点击墙或门窗开始编辑 · 长按空白添加墙 · 拖空白移动视图",
-            color = PlannerText,
-            modifier = Modifier.padding(start = 8.dp)
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ToolSelectorRow(selectedTool = state.tool, onSelect = { onEvent(RoomPlannerEvent.SelectTool(it)) })
-                PlannerSecondaryButton(
-                    text = adjustmentDecreaseLabel(state.selected),
-                    onClick = { onEvent(RoomPlannerEvent.AdjustSelection(-0.2f)) },
-                    enabled = state.selected != null
-                )
-                PlannerPrimaryButton(
-                    text = adjustmentIncreaseLabel(state.selected),
-                    onClick = { onEvent(RoomPlannerEvent.AdjustSelection(0.2f)) },
-                    enabled = state.selected != null
-                )
-                PlannerSecondaryButton(
-                    text = "删除",
-                    onClick = { onEvent(RoomPlannerEvent.RequestDeleteSelection) },
-                    enabled = state.selected != null
-                )
-                PlannerSecondaryButton(
-                    text = "撤销",
-                    onClick = { onEvent(RoomPlannerEvent.UndoLastChange) },
-                    enabled = state.canUndo
-                )
-            }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "待确认项 ${issues.size} 个 · 演示数据不会调用真实识别接口",
-                color = PlannerTextMuted,
-                modifier = Modifier.weight(1f)
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                PlannerSecondaryButton(text = "上传户型图", onClick = onImportClick)
-                PlannerPrimaryButton(text = "生成模拟房间", onClick = { onEvent(RoomPlannerEvent.GenerateRoom) })
-            }
-        }
-    }
-}
-
-@Composable
-private fun ResultStep(
-    plan: VirtualRoomPlan,
-    onReturn: () -> Unit,
-    onEnterRoom: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 34.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text("模拟房间已就绪", color = PlannerText)
-        FloorPlanCanvas(
-            plan = plan,
-            selection = null,
-            pan = Offset.Zero,
-            modifier = Modifier.weight(1f).fillMaxWidth()
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MetricCard(label = "墙体", value = plan.walls.size.toString())
-                MetricCard(label = "门窗", value = plan.openings.size.toString())
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                PlannerSecondaryButton(text = "继续编辑", onClick = onReturn)
-                PlannerPrimaryButton(text = "进入房间", onClick = onEnterRoom)
-            }
-        }
-    }
-}
-
-@Composable
-private fun BusyStep(
-    title: String,
-    body: String,
-    actionLabel: String,
-    onAction: () -> Unit
-) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            LoadingRing()
-            Text(title, color = PlannerText)
-            Text(body, color = PlannerTextMuted)
-            PlannerSecondaryButton(text = actionLabel, onClick = onAction)
-        }
-    }
-}
-
-@Composable
-private fun InternalBottomTabs(
-    onNavigateToShop: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        PlannerPrimaryButton(text = "我的户型", onClick = {})
-        PlannerSecondaryButton(text = "选家具", onClick = onNavigateToShop)
-    }
-}
-
-@Composable
-private fun ToolSelectorRow(
-    selectedTool: PlannerTool,
-    onSelect: (PlannerTool) -> Unit
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        PlannerTool.entries.forEach { tool ->
-            val selected = tool == selectedTool
-            Button(
-                onClick = { onSelect(tool) },
-                colors = if (selected) primaryButtonColors() else secondaryButtonColors()
-            ) {
-                Text(tool.label, color = if (selected) PlannerText else PlannerTextMuted)
-            }
-        }
-    }
-}
-
-@Composable
-private fun EditActionRow(
-    state: RoomPlannerUiState,
-    onAdjust: (Float) -> Unit,
-    onDelete: () -> Unit,
-    onUndo: () -> Unit,
-    onShowIssues: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        PlannerSecondaryButton(
-            text = adjustmentDecreaseLabel(state.selected),
-            onClick = { onAdjust(-0.2f) },
-            enabled = state.selected != null
-        )
-        PlannerPrimaryButton(
-            text = adjustmentIncreaseLabel(state.selected),
-            onClick = { onAdjust(0.2f) },
-            enabled = state.selected != null
-        )
-        PlannerSecondaryButton(
-            text = "删除",
-            onClick = onDelete,
-            enabled = state.selected != null
-        )
-        PlannerSecondaryButton(
-            text = "撤销",
-            onClick = onUndo,
-            enabled = state.canUndo
-        )
-        PlannerSecondaryButton(text = "检查问题", onClick = onShowIssues)
-    }
-}
-
-@Composable
-private fun FooterActions(
-    primaryLabel: String,
-    onPrimary: () -> Unit,
-    secondaryLabel: String,
-    onSecondary: () -> Unit,
-    secondaryEnabled: Boolean = true
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        PlannerSecondaryButton(
-            text = secondaryLabel,
-            onClick = onSecondary,
-            enabled = secondaryEnabled
-        )
-        PlannerPrimaryButton(text = primaryLabel, onClick = onPrimary)
-    }
-}
-
-@Composable
-private fun DemoActionsRow(actions: List<Pair<String, () -> Unit>>) {
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        actions.take(6).forEach { (label, onClick) ->
-            PlannerSecondaryButton(text = label, onClick = onClick)
-        }
-    }
-}
-
-@Composable
-private fun GlassPanel(
-    modifier: Modifier = Modifier,
-    strong: Boolean = false,
-    radius: androidx.compose.ui.unit.Dp = 24.dp,
-    content: @Composable BoxScope.() -> Unit
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(radius))
-            .background(if (strong) PlannerGlassStrong else PlannerGlass)
-            .padding(1.dp)
-    ) {
-        Box(
+            showHandles = true,
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(radius))
-                .background(Color.Transparent),
-            content = content
+                .clipRounded(),
+            onTap = { _, _ -> },
+            onLongPress = { _, _ -> },
+            onPan = { pan += it }
+        )
+        HfToolPanel(
+            title = "校准真实尺寸",
+            description = "输入一段你知道长度的墙（如最长外墙），用于换算比例。",
+            inputRow = {
+                HfNumberInput(
+                    label = "已知长度（米）",
+                    value = lengthText,
+                    onValueChange = { lengthText = it }
+                )
+            },
+            buttonRow = {
+                HfSecondaryButton(
+                    text = "取消",
+                    onClick = { onEvent(RoomPlannerEvent.CancelBusyStep) },
+                    leadingIconRes = R.drawable.ic_arrow_left
+                )
+                HfPrimaryButton(
+                    text = "确认尺寸",
+                    onClick = {
+                        val length = lengthText.toFloatOrNull()
+                        if (length != null) {
+                            onEvent(RoomPlannerEvent.ConfirmCalibration(length))
+                        } else {
+                            onEvent(RoomPlannerEvent.ShowToast("请输入有效长度"))
+                        }
+                    },
+                    leadingIconRes = R.drawable.ic_arrow_right
+                )
+            },
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 56.dp)
+                .width(454.dp)
         )
     }
 }
 
+/* ------------------------------ P05–P11 编辑 ------------------------------ */
+
 @Composable
-private fun PlannerPrimaryButton(
-    text: String,
-    onClick: () -> Unit,
-    enabled: Boolean = true
+private fun EditStepContent(
+    state: RoomPlannerUiState,
+    onEvent: (RoomPlannerEvent) -> Unit
 ) {
-    Button(onClick = onClick, enabled = enabled, colors = primaryButtonColors()) {
-        Text(text, color = PlannerText)
-    }
-}
-
-@Composable
-private fun PlannerSecondaryButton(
-    text: String,
-    onClick: () -> Unit,
-    enabled: Boolean = true
-) {
-    Button(onClick = onClick, enabled = enabled, colors = secondaryButtonColors()) {
-        Text(text, color = PlannerTextMuted)
-    }
-}
-
-@Composable
-private fun primaryButtonColors() = ButtonDefaults.buttonColors(
-    containerColor = PlannerAccent,
-    contentColor = PlannerText
-)
-
-@Composable
-private fun secondaryButtonColors() = ButtonDefaults.buttonColors(
-    containerColor = Color.Transparent,
-    contentColor = PlannerTextMuted
-)
-
-@Composable
-private fun UploadIllustration() {
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val stroke = 10.dp.toPx()
-        val panel = Rect(
-            left = size.width * 0.12f,
-            top = size.height * 0.12f,
-            right = size.width * 0.88f,
-            bottom = size.height * 0.78f
-        )
-        drawRoundRect(
-            color = PlannerBorder,
-            topLeft = panel.topLeft,
-            size = panel.size,
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(26.dp.toPx(), 26.dp.toPx()),
-            style = Stroke(width = stroke)
-        )
-        drawLine(
-            color = PlannerTextMuted,
-            start = Offset(panel.left + panel.width * 0.22f, panel.top + panel.height * 0.48f),
-            end = Offset(panel.right - panel.width * 0.22f, panel.top + panel.height * 0.48f),
-            strokeWidth = stroke * 0.8f,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = PlannerTextMuted,
-            start = Offset(panel.center.x, panel.top + panel.height * 0.22f),
-            end = Offset(panel.center.x, panel.bottom - panel.height * 0.18f),
-            strokeWidth = stroke * 0.8f,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = PlannerAccent,
-            start = Offset(panel.center.x, panel.top + panel.height * 0.18f),
-            end = Offset(panel.center.x - 34.dp.toPx(), panel.top + panel.height * 0.32f),
-            strokeWidth = stroke * 0.8f,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = PlannerAccent,
-            start = Offset(panel.center.x, panel.top + panel.height * 0.18f),
-            end = Offset(panel.center.x + 34.dp.toPx(), panel.top + panel.height * 0.32f),
-            strokeWidth = stroke * 0.8f,
-            cap = StrokeCap.Round
-        )
-    }
-}
-
-@Composable
-private fun MetricCard(label: String, value: String) {
-    GlassPanel(radius = 18.dp) {
-        Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
-            Text(label, color = PlannerTextMuted)
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(value, color = PlannerText)
+    var pan by remember { mutableStateOf(Offset.Zero) }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 34.dp, vertical = 24.dp)
+    ) {
+        // 户型图画布区：提示条移出画布，独立放在画布下方，避免与墙体线/尺寸标注叠加
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            FloorPlanCanvas(
+                plan = state.generatedPlan,
+                selection = state.selected,
+                pan = pan,
+                showHandles = state.selected != null,
+                draftPoint = state.wallDraftStart,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clipRounded(),
+                onTap = { x, z ->
+                    if (state.isAddingWall) {
+                        onEvent(RoomPlannerEvent.PlaceWallPoint(x, z))
+                    } else {
+                        onEvent(RoomPlannerEvent.SelectElementAt(x, z))
+                    }
+                },
+                onLongPress = { x, z ->
+                    if (!state.isAddingWall) {
+                        onEvent(RoomPlannerEvent.BeginAddWallAt(x, z))
+                    }
+                },
+                onPan = { pan += it }
+            )
+            // 就近工具面板（P06–P11）
+            val panelModifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 56.dp)
+                .width(454.dp)
+            when {
+                state.pendingDelete != null ->
+                    DeleteConfirmPanel(state, onEvent, panelModifier)
+                state.showIssues ->
+                    IssuesPanel(state, onEvent, panelModifier)
+                state.isAddingWall ->
+                    AddWallPanel(state, onEvent, panelModifier)
+                state.selected?.type == PlannerSelectionType.WALL ->
+                    WallEditorPanel(state, onEvent, panelModifier)
+                state.selected?.type == PlannerSelectionType.DOOR ->
+                    DoorEditorPanel(state, onEvent, panelModifier)
+                state.selected?.type == PlannerSelectionType.WINDOW ->
+                    WindowEditorPanel(state, onEvent, panelModifier)
+            }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        // 提示行 + 演示开关（画布下方独立区域，就近排布，保持小字号弱视觉）
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                HfDemoLink(text = "演示：检查问题", onClick = { onEvent(RoomPlannerEvent.InjectIssuePlan) })
+                HfDemoLink(
+                    text = "演示：离线" + if (state.simulateOffline) "·开" else "",
+                    onClick = { onEvent(RoomPlannerEvent.ToggleOfflineSimulated) }
+                )
+                HfDemoLink(
+                    text = "演示：保存失败" + if (state.simulateSaveFailure) "·开" else "",
+                    onClick = { onEvent(RoomPlannerEvent.ToggleSaveFailureSimulated) }
+                )
+                HfDemoLink(
+                    text = "演示：生成异常" + if (state.simulateGenerationError) "·开" else "",
+                    onClick = { onEvent(RoomPlannerEvent.ToggleGenerationErrorSimulated) }
+                )
+                HfDemoLink(
+                    text = "演示：恢复草稿",
+                    onClick = { onEvent(RoomPlannerEvent.ShowDialog(PlannerDialog.RESTORE_DRAFT)) }
+                )
+            }
+            Text(
+                text = "点击墙或门窗开始编辑 · 长按空白添加墙 · 拖空白移动视图",
+                color = PlannerHfColors.TextSecondary,
+                style = HfType.Note
+            )
         }
     }
 }
 
 @Composable
-private fun LoadingRing() {
-    Canvas(modifier = Modifier.size(84.dp)) {
-        val stroke = 8.dp.toPx()
-        drawArc(
-            color = PlannerAccent,
-            startAngle = -90f,
-            sweepAngle = 275f,
-            useCenter = false,
-            topLeft = Offset(stroke, stroke),
-            size = Size(size.width - stroke * 2f, size.height - stroke * 2f),
-            style = Stroke(width = stroke, cap = StrokeCap.Round)
+private fun WallEditorPanel(
+    state: RoomPlannerUiState,
+    onEvent: (RoomPlannerEvent) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val wall = state.generatedPlan.walls
+        .firstOrNull { it.id == state.selected?.id } ?: return
+    val horizontal = wall.width >= wall.depth
+    val length = if (horizontal) wall.width else wall.depth
+    val thickness = minOf(wall.width, wall.depth)
+    var lengthText by remember(wall.id, wall.width, wall.depth, wall.height) {
+        mutableStateOf("%.2f".format(length))
+    }
+    var heightText by remember(wall.id, wall.width, wall.depth, wall.height) {
+        mutableStateOf("%.2f".format(wall.height))
+    }
+    var thicknessText by remember(wall.id, wall.width, wall.depth, wall.height) {
+        mutableStateOf("%.2f".format(thickness))
+    }
+    HfToolPanel(
+        title = "编辑墙体",
+        subtitle = "墙体已选中 · 长 %.2f m".format(length),
+        inputRow = {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                HfNumberInput(
+                    label = "长度（米）",
+                    value = lengthText,
+                    onValueChange = { text ->
+                        lengthText = text
+                        text.toFloatOrNull()?.let {
+                            onEvent(RoomPlannerEvent.UpdateWallGeometry(it, null, null))
+                        }
+                    }
+                )
+                HfNumberInput(
+                    label = "墙高（米）",
+                    value = heightText,
+                    onValueChange = { text ->
+                        heightText = text
+                        text.toFloatOrNull()?.let {
+                            onEvent(RoomPlannerEvent.UpdateWallGeometry(null, it, null))
+                        }
+                    }
+                )
+                HfNumberInput(
+                    label = "厚度（米）",
+                    value = thicknessText,
+                    onValueChange = { text ->
+                        thicknessText = text
+                        text.toFloatOrNull()?.let {
+                            onEvent(RoomPlannerEvent.UpdateWallGeometry(null, null, it))
+                        }
+                    }
+                )
+            }
+        },
+        buttonRow = {
+            HfSecondaryButton(
+                text = "添加门",
+                onClick = { onEvent(RoomPlannerEvent.AddDoorOnSelection) }
+            )
+            HfSecondaryButton(
+                text = "添加窗",
+                onClick = { onEvent(RoomPlannerEvent.AddWindowOnSelection) }
+            )
+            HfDangerButton(
+                text = "删除墙",
+                onClick = { onEvent(RoomPlannerEvent.RequestDeleteSelection) },
+                deleteIconRes = R.drawable.ic_delete
+            )
+        },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun DoorEditorPanel(
+    state: RoomPlannerUiState,
+    onEvent: (RoomPlannerEvent) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val opening = state.generatedPlan.openings
+        .firstOrNull { it.id == state.selected?.id } ?: return
+    val width = if (opening.width >= opening.depth) opening.width else opening.depth
+    var widthText by remember(opening.id, opening.width, opening.depth) {
+        mutableStateOf("%.2f".format(width))
+    }
+    var heightText by remember(opening.id, opening.heightMeters) {
+        mutableStateOf("%.2f".format(opening.heightMeters))
+    }
+    HfToolPanel(
+        title = "编辑门",
+        subtitle = "门 · 宽 %.2f m / 高 %.2f m".format(width, opening.heightMeters),
+        inputRow = {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                HfNumberInput(
+                    label = "宽度（米）",
+                    value = widthText,
+                    onValueChange = { widthText = it }
+                )
+                HfNumberInput(
+                    label = "高度（米）",
+                    value = heightText,
+                    onValueChange = { heightText = it }
+                )
+            }
+        },
+        buttonRow = {
+            HfSecondaryButton(
+                text = "切换开向",
+                onClick = { onEvent(RoomPlannerEvent.ToggleDoorSwing) }
+            )
+            HfPrimaryButton(
+                text = "确认修改",
+                onClick = {
+                    val w = widthText.toFloatOrNull() ?: width
+                    val h = heightText.toFloatOrNull() ?: opening.heightMeters
+                    onEvent(RoomPlannerEvent.ApplyOpeningEdit(w, h, opening.sillMeters))
+                }
+            )
+            HfDangerButton(
+                text = "删除门",
+                onClick = { onEvent(RoomPlannerEvent.RequestDeleteSelection) },
+                deleteIconRes = R.drawable.ic_delete
+            )
+        },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun WindowEditorPanel(
+    state: RoomPlannerUiState,
+    onEvent: (RoomPlannerEvent) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val opening = state.generatedPlan.openings
+        .firstOrNull { it.id == state.selected?.id } ?: return
+    val width = if (opening.width >= opening.depth) opening.width else opening.depth
+    var widthText by remember(opening.id, opening.width, opening.depth) {
+        mutableStateOf("%.2f".format(width))
+    }
+    var heightText by remember(opening.id, opening.heightMeters) {
+        mutableStateOf("%.2f".format(opening.heightMeters))
+    }
+    var sillText by remember(opening.id, opening.sillMeters) {
+        mutableStateOf("%.2f".format(opening.sillMeters))
+    }
+    HfToolPanel(
+        title = "编辑窗",
+        subtitle = "窗 · 宽 %.2f m / 高 %.2f m".format(width, opening.heightMeters),
+        inputRow = {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                HfNumberInput(
+                    label = "宽度（米）",
+                    value = widthText,
+                    onValueChange = { widthText = it }
+                )
+                HfNumberInput(
+                    label = "高度（米）",
+                    value = heightText,
+                    onValueChange = { heightText = it }
+                )
+                HfNumberInput(
+                    label = "窗台高（米）",
+                    value = sillText,
+                    onValueChange = { sillText = it }
+                )
+            }
+        },
+        buttonRow = {
+            HfPrimaryButton(
+                text = "确认修改",
+                onClick = {
+                    val w = widthText.toFloatOrNull() ?: width
+                    val h = heightText.toFloatOrNull() ?: opening.heightMeters
+                    val s = sillText.toFloatOrNull() ?: opening.sillMeters
+                    onEvent(RoomPlannerEvent.ApplyOpeningEdit(w, h, s))
+                }
+            )
+            HfDangerButton(
+                text = "删除窗",
+                onClick = { onEvent(RoomPlannerEvent.RequestDeleteSelection) },
+                deleteIconRes = R.drawable.ic_delete
+            )
+        },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun AddWallPanel(
+    state: RoomPlannerUiState,
+    onEvent: (RoomPlannerEvent) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    HfToolPanel(
+        title = "添加墙体",
+        subtitle = if (state.wallDraftStart == null) {
+            "请长按画布空白处放置起点。"
+        } else {
+            "已放置起点，请点击终点完成新墙。"
+        },
+        description = "点起点，再点终点；连接已有端点可闭合房间。",
+        buttonRow = {
+            HfPrimaryButton(
+                text = "完成绘制",
+                onClick = { onEvent(RoomPlannerEvent.FinishAddWall) }
+            )
+            HfSecondaryButton(
+                text = "取消",
+                onClick = { onEvent(RoomPlannerEvent.CancelAddWall) },
+                leadingIconRes = R.drawable.ic_arrow_left
+            )
+        },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun IssuesPanel(
+    state: RoomPlannerUiState,
+    onEvent: (RoomPlannerEvent) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val issues = remember(state.generatedPlan) { buildPlanIssues(state.generatedPlan) }
+    HfToolPanel(
+        title = "有 ${issues.size} 处需要修正",
+        subtitle = "问题位置已在画布上标记，修正一处即少一处。",
+        description = planIssueSummary(issues),
+        buttonRow = {
+            HfSecondaryButton(
+                text = "定位断点",
+                onClick = { onEvent(RoomPlannerEvent.LocateIssue(PlannerIssueKind.OPEN_EDGE)) }
+            )
+            HfSecondaryButton(
+                text = "定位重叠",
+                onClick = { onEvent(RoomPlannerEvent.LocateIssue(PlannerIssueKind.OVERLAP)) }
+            )
+        },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun DeleteConfirmPanel(
+    state: RoomPlannerUiState,
+    onEvent: (RoomPlannerEvent) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val target = state.pendingDelete ?: return
+    val plan = state.generatedPlan
+    val title = when (target.type) {
+        PlannerSelectionType.WALL -> "删除这面墙？"
+        PlannerSelectionType.DOOR -> "删除这扇门？"
+        PlannerSelectionType.WINDOW -> "删除这扇窗？"
+    }
+    val description = when (target.type) {
+        PlannerSelectionType.WALL -> {
+            val doors = doorsAttachedToWall(plan, target.id)
+            if (doors > 0) {
+                "这面墙上的 $doors 扇门也会移除。删除后可撤销。"
+            } else {
+                "墙体删除后可撤销，同时会移除墙上的门窗。"
+            }
+        }
+        else -> "删除后可撤销。"
+    }
+    HfToolPanel(
+        title = title,
+        description = description,
+        buttonRow = {
+            HfSecondaryButton(
+                text = "取消",
+                onClick = { onEvent(RoomPlannerEvent.CancelDeleteSelection) },
+                leadingIconRes = R.drawable.ic_arrow_left
+            )
+            HfDangerButton(
+                text = "确认删除",
+                onClick = { onEvent(RoomPlannerEvent.ConfirmDeleteSelection) },
+                deleteIconRes = R.drawable.ic_delete
+            )
+        },
+        modifier = modifier
+    )
+}
+
+/* ------------------------------- P12 生成中 ------------------------------ */
+
+@Composable
+private fun GeneratingStepContent(onEvent: (RoomPlannerEvent) -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "正在搭建你的房间",
+            color = PlannerHfColors.TextPrimary,
+            style = HfType.Section
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "检查结构  ✓    构建墙体与开口  …    准备空间\n生成期间保留当前编辑结果。",
+            color = PlannerHfColors.TextSecondary,
+            textAlign = TextAlign.Center,
+            style = HfType.Label
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        HfSecondaryButton(
+            text = "取消生成",
+            onClick = { onEvent(RoomPlannerEvent.CancelBusyStep) },
+            leadingIconRes = R.drawable.ic_house_add
         )
     }
 }
+
+/* ------------------------------- P13 已就绪 ------------------------------ */
+
+@Composable
+private fun ResultStepContent(
+    state: RoomPlannerUiState,
+    onEvent: (RoomPlannerEvent) -> Unit,
+    onEnterRoom: () -> Unit,
+    onNavigateToShop: () -> Unit
+) {
+    var pan by remember { mutableStateOf(Offset.Zero) }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 34.dp, vertical = 24.dp)
+    ) {
+        FloorPlanCanvas(
+            plan = state.generatedPlan,
+            selection = null,
+            pan = pan,
+            showHandles = false,
+            modifier = Modifier
+                .fillMaxSize()
+                .clipRounded(),
+            onTap = { _, _ -> },
+            onLongPress = { _, _ -> },
+            onPan = { pan += it }
+        )
+        HfToolPanel(
+            title = "房间已生成",
+            description = "尺寸已校准 · 可以进入空间并开始选家具。",
+            buttonRow = {
+                HfSecondaryButton(
+                    text = "返回编辑",
+                    onClick = { onEvent(RoomPlannerEvent.ReturnToEdit) },
+                    leadingIconRes = R.drawable.ic_arrow_left
+                )
+                HfPrimaryButton(
+                    text = "进入房间",
+                    onClick = onEnterRoom,
+                    leadingIconRes = R.drawable.ic_house_add
+                )
+                HfSecondaryButton(
+                    text = "去选家具",
+                    onClick = onNavigateToShop,
+                    leadingIconRes = R.drawable.ic_nav_couch,
+                    textColor = PlannerHfColors.NavTextLight
+                )
+            },
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 56.dp)
+                .width(454.dp)
+        )
+    }
+}
+
+/* ------------------------------ P14 异常恢复 ----------------------------- */
+
+@Composable
+private fun ErrorStepContent(onEvent: (RoomPlannerEvent) -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "暂时无法生成房间",
+            color = PlannerHfColors.TextPrimary,
+            style = HfType.Section
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "当前编辑已保留，请重试或返回检查户型。\n\n" +
+                "上传失败：格式不支持 → 重新选择\n" +
+                "提取失败：图片不清晰 → 重传 / 使用示例\n" +
+                "空间不可用：返回平面预览 → 稍后重试",
+            color = PlannerHfColors.TextSecondary,
+            textAlign = TextAlign.Center,
+            style = HfType.Label
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            HfSecondaryButton(
+                text = "返回编辑",
+                onClick = { onEvent(RoomPlannerEvent.ReturnToEdit) },
+                leadingIconRes = R.drawable.ic_arrow_left
+            )
+            HfPrimaryButton(
+                text = "重新尝试",
+                onClick = { onEvent(RoomPlannerEvent.RetryGeneration) },
+                leadingIconRes = R.drawable.ic_arrow_right
+            )
+        }
+    }
+}
+
+/* ------------------------------ P15–P19 弹窗 ------------------------------ */
 
 @Composable
 private fun PlannerDialogOverlay(
     state: RoomPlannerUiState,
-    onDismiss: () -> Unit,
-    onUpload: () -> Unit,
-    onCamera: () -> Unit,
-    onConfirmReplace: () -> Unit,
-    onConfirmDelete: () -> Unit,
-    onRestoreDraft: () -> Unit,
-    plan: VirtualRoomPlan
+    onEvent: (RoomPlannerEvent) -> Unit
 ) {
     val dialog = state.dialog ?: return
     Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.12f)),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.12f)),
         contentAlignment = Alignment.Center
     ) {
-        GlassPanel(
-            modifier = Modifier.width(620.dp),
-            strong = true,
-            radius = 26.dp
+        HfGlassPanel(
+            fill = PlannerHfColors.ToolPanel,
+            border = PlannerHfColors.DialogStroke,
+            modifier = Modifier.width(504.dp)
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                modifier = Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                when (dialog) {
-                    PlannerDialog.IMPORT_OPTIONS -> {
-                        DialogHeading("选择户型来源", "可以从本地图片或摄像头导入。当前识别结果仍为演示数据。")
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            PlannerPrimaryButton(text = "上传户型图", onClick = onUpload)
-                            PlannerSecondaryButton(text = "打开摄像头", onClick = onCamera)
-                            PlannerSecondaryButton(text = "取消", onClick = onDismiss)
-                        }
-                    }
-                    PlannerDialog.REPLACE_CURRENT_PLAN -> {
-                        DialogHeading("替换当前户型？", "当前编辑会先保存为草稿，替换后仍可在同一会话中恢复。")
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            PlannerPrimaryButton(text = "继续替换", onClick = onConfirmReplace)
-                            PlannerSecondaryButton(text = "继续编辑", onClick = onDismiss)
-                        }
-                    }
-                    PlannerDialog.DELETE_SELECTION -> {
-                        DialogHeading("删除当前选中项", "删除后仍可使用撤销恢复。")
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            PlannerPrimaryButton(text = "确认删除", onClick = onConfirmDelete)
-                            PlannerSecondaryButton(text = "取消", onClick = onDismiss)
-                        }
-                    }
-                    PlannerDialog.INVALID_IMAGE -> {
-                        DialogHeading("无效图片", "请上传清晰的平面户型图。当前版本不会真实识别图片内容。")
-                        PlannerSecondaryButton(text = "知道了", onClick = onDismiss)
-                    }
-                    PlannerDialog.UPLOAD_FAILED -> {
-                        DialogHeading("上传失败", "图片没有成功写入本地缓存，请重新选择文件。")
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            PlannerPrimaryButton(text = "重新上传", onClick = onDismiss)
-                            PlannerSecondaryButton(text = "取消", onClick = onDismiss)
-                        }
-                    }
-                    PlannerDialog.OFFLINE -> {
-                        DialogHeading("当前已离线", "可以继续本地编辑。在线识别暂不可用，原图已保留。")
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            PlannerPrimaryButton(text = "继续编辑", onClick = onDismiss)
-                            PlannerSecondaryButton(text = "重试连接", onClick = onDismiss)
-                        }
-                    }
-                    PlannerDialog.SAVE_FAILED -> {
-                        DialogHeading("保存失败", "修改仍保留在当前会话。请不要退出应用，重试保存。")
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            PlannerPrimaryButton(text = "继续编辑", onClick = onDismiss)
-                            PlannerSecondaryButton(text = "稍后重试", onClick = onDismiss)
-                        }
-                    }
-                    PlannerDialog.INVALID_DOOR_SIZE -> {
-                        DialogHeading("门宽超出可用墙段", "请输入 0.10–2.40 米，或选择更长的墙。当前输入未丢失。")
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            PlannerPrimaryButton(text = "返回输入", onClick = onDismiss)
-                            PlannerSecondaryButton(text = "取消修改", onClick = onDismiss)
-                        }
-                    }
-                    PlannerDialog.GENERATE_FAILED -> {
-                        DialogHeading("生成失败", "模拟房间没有生成成功，请保留当前编辑并重新尝试。")
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            PlannerPrimaryButton(text = "重试生成", onClick = onDismiss)
-                            PlannerSecondaryButton(text = "继续编辑", onClick = onDismiss)
-                        }
-                    }
-                    PlannerDialog.RESTORE_DRAFT -> {
-                        DialogHeading("恢复上次编辑？", "发现上次保存的户型草稿，可以恢复墙体及门窗修改。")
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            PlannerPrimaryButton(text = "恢复草稿", onClick = onRestoreDraft)
-                            PlannerSecondaryButton(text = "稍后恢复", onClick = onDismiss)
-                        }
-                    }
-                    PlannerDialog.PLAN_ISSUES -> {
-                        DialogHeading("检查户型问题", "以下项目来自当前演示户型，请在生成前人工确认。")
-                        buildPlanIssues(plan).forEach { issue ->
-                            Text("• $issue", color = PlannerTextMuted)
-                        }
-                        PlannerSecondaryButton(text = "关闭", onClick = onDismiss)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DialogHeading(title: String, body: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, color = PlannerText)
-        Text(body, color = PlannerTextMuted)
-    }
-}
-
-@Composable
-private fun FloorPlanCanvas(
-    plan: VirtualRoomPlan,
-    selection: PlannerSelection?,
-    pan: Offset,
-    modifier: Modifier = Modifier,
-    onTap: ((Float, Float) -> Unit)? = null,
-    onLongPress: ((Float, Float) -> Unit)? = null,
-    onPan: ((Offset) -> Unit)? = null
-) {
-    val wallColor = PicoTheme.colorScheme.labelPrimary
-    val floorColor = PicoTheme.colorScheme.interaction.copy(alpha = 0.14f)
-    val tableColor = PicoTheme.colorScheme.fillSecondary
-    val doorColor = PicoTheme.colorScheme.interaction
-    val windowColor = PicoTheme.colorScheme.labelSecondary
-    val selectedColor = PlannerAccent
-    Canvas(
-        modifier = modifier
-            .clip(RoundedCornerShape(24.dp))
-            .background(Color.White.copy(alpha = 0.36f))
-            .pointerInput(plan, pan) {
-                detectTapGestures(
-                    onTap = { offset ->
-                        onTap?.invoke(mapOffsetToPlanX(offset, size, plan, pan), mapOffsetToPlanZ(offset, size, plan, pan))
-                    },
-                    onLongPress = { offset ->
-                        onLongPress?.invoke(mapOffsetToPlanX(offset, size, plan, pan), mapOffsetToPlanZ(offset, size, plan, pan))
-                    }
+                Text(
+                    text = dialogTitle(dialog),
+                    color = PlannerHfColors.ToastText,
+                    style = HfType.Section
                 )
-            }
-            .pointerInput(plan, pan) {
-                detectDragGestures { change, dragAmount ->
-                    change.consume()
-                    onPan?.invoke(dragAmount)
-                }
-            }
-            .padding(16.dp)
-    ) {
-        val transform = rememberTransform(plan, size, pan)
-        fun x(value: Float) = transform.origin.x + value * transform.scale
-        fun z(value: Float) = transform.origin.y - value * transform.scale
-        fun band(centerX: Float, centerZ: Float, widthPx: Float, depthPx: Float) = Rect(
-            left = x(centerX) - widthPx / 2f,
-            top = z(centerZ) - depthPx / 2f,
-            right = x(centerX) + widthPx / 2f,
-            bottom = z(centerZ) + depthPx / 2f
-        )
-
-        val minWallThickness = 2.5.dp.toPx()
-        val thinStroke = 1.5.dp.toPx()
-        val boldStroke = 2.5.dp.toPx()
-
-        plan.surfaces.forEach { surface ->
-            val rect = band(surface.centerX, surface.centerZ, surface.width * transform.scale, surface.depth * transform.scale)
-            drawRect(
-                color = if (surface.kind == RoomSurfaceKind.TABLE) tableColor.copy(alpha = 0.42f) else floorColor,
-                topLeft = rect.topLeft,
-                size = rect.size
-            )
-        }
-
-        plan.walls.forEach { wall ->
-            val isHorizontal = wall.width >= wall.depth
-            val lengthPx = max(wall.width, wall.depth) * transform.scale
-            val thicknessPx = max(minOf(wall.width, wall.depth) * transform.scale, minWallThickness)
-            val rect = band(
-                centerX = wall.centerX,
-                centerZ = wall.centerZ,
-                widthPx = if (isHorizontal) lengthPx else thicknessPx,
-                depthPx = if (isHorizontal) thicknessPx else lengthPx
-            )
-            drawRect(
-                color = if (selection?.id == wall.id && selection.type == PlannerSelectionType.WALL) {
-                    selectedColor
-                } else {
-                    wallColor
-                },
-                topLeft = rect.topLeft,
-                size = rect.size
-            )
-        }
-
-        plan.openings.forEach { opening ->
-            val isHorizontal = opening.width >= opening.depth
-            val lengthPx = max(opening.width, opening.depth) * transform.scale
-            val centerX = x(opening.centerX)
-            val centerZ = z(opening.centerZ)
-            val isSelected = selection?.id == opening.id
-            val color = if (isSelected) selectedColor else if (opening.kind == RoomOpeningKind.WINDOW) windowColor else doorColor
-            if (opening.kind == RoomOpeningKind.WINDOW) {
-                val half = lengthPx / 2f
-                listOf(-1f, 0f, 1f).forEach { step ->
-                    val offset = step * thinStroke
-                    val start = if (isHorizontal) {
-                        Offset(centerX - half, centerZ + offset)
-                    } else {
-                        Offset(centerX + offset, centerZ - half)
-                    }
-                    val end = if (isHorizontal) {
-                        Offset(centerX + half, centerZ + offset)
-                    } else {
-                        Offset(centerX + offset, centerZ + half)
-                    }
-                    drawLine(color, start, end, strokeWidth = if (isSelected) boldStroke else thinStroke, cap = StrokeCap.Round)
-                }
-            } else {
-                val hinge = if (isHorizontal) {
-                    Offset(centerX - lengthPx / 2f, centerZ)
-                } else {
-                    Offset(centerX, centerZ - lengthPx / 2f)
-                }
-                val tip = if (isHorizontal) {
-                    Offset(hinge.x, hinge.y + lengthPx)
-                } else {
-                    Offset(hinge.x + lengthPx, hinge.y)
-                }
-                drawLine(color, hinge, tip, strokeWidth = boldStroke, cap = StrokeCap.Round)
-                drawArc(
-                    color = color,
-                    startAngle = 0f,
-                    sweepAngle = 90f,
-                    useCenter = false,
-                    topLeft = Offset(hinge.x - lengthPx, hinge.y - lengthPx),
-                    size = Size(lengthPx * 2f, lengthPx * 2f),
-                    style = Stroke(width = if (isSelected) boldStroke + 1.dp.toPx() else boldStroke)
+                Text(
+                    text = dialogBody(dialog),
+                    color = PlannerHfColors.ToastText,
+                    style = HfType.Note
                 )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    HfSecondaryButton(
+                        text = dialogDismissLabel(dialog),
+                        onClick = {
+                            when (dialog) {
+                                PlannerDialog.OFFLINE -> onEvent(RoomPlannerEvent.UseSamplePlan)
+                                else -> onEvent(RoomPlannerEvent.DismissDialog)
+                            }
+                        }
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    HfPrimaryButton(
+                        text = dialogConfirmLabel(dialog),
+                        onClick = {
+                            when (dialog) {
+                                PlannerDialog.REPLACE_CURRENT_PLAN ->
+                                    onEvent(RoomPlannerEvent.ConfirmReplaceCurrentPlan)
+                                PlannerDialog.RESTORE_DRAFT ->
+                                    onEvent(RoomPlannerEvent.RestoreDraft)
+                                PlannerDialog.SAVE_FAILED ->
+                                    onEvent(RoomPlannerEvent.RetrySave)
+                                PlannerDialog.OFFLINE ->
+                                    onEvent(RoomPlannerEvent.RetryConnection)
+                                PlannerDialog.INVALID_DOOR_SIZE ->
+                                    onEvent(RoomPlannerEvent.DismissDialog)
+                            }
+                        },
+                        leadingIconRes = dialogConfirmIcon(dialog)
+                    )
+                }
             }
         }
+    }
+}
 
-        drawRect(
-            color = wallColor.copy(alpha = 0.28f),
-            topLeft = Offset(x(-plan.widthMeters / 2f), z(plan.depthMeters / 2f)),
-            size = Size(plan.widthMeters * transform.scale, plan.depthMeters * transform.scale),
-            style = Stroke(width = 1.dp.toPx())
+private fun dialogTitle(dialog: PlannerDialog): String = when (dialog) {
+    PlannerDialog.REPLACE_CURRENT_PLAN -> "替换当前户型？"
+    PlannerDialog.RESTORE_DRAFT -> "恢复上次编辑？"
+    PlannerDialog.SAVE_FAILED -> "保存失败"
+    PlannerDialog.OFFLINE -> "当前已离线"
+    PlannerDialog.INVALID_DOOR_SIZE -> "门宽超出可用墙段"
+}
+
+private fun dialogBody(dialog: PlannerDialog): String = when (dialog) {
+    PlannerDialog.REPLACE_CURRENT_PLAN -> "当前编辑将保留为本机草稿。上传新图会替换当前画布。"
+    PlannerDialog.RESTORE_DRAFT -> "发现上次保存的户型草稿，可以恢复墙体及门窗修改。"
+    PlannerDialog.SAVE_FAILED -> "修改仍保留在当前会话。请不要退出应用，重试保存。"
+    PlannerDialog.OFFLINE -> "可以继续本地编辑。在线识别暂不可用，原图已保留。"
+    PlannerDialog.INVALID_DOOR_SIZE -> "请输入 0.10–2.40 米，或选择更长的墙。当前输入未丢失。"
+}
+
+private fun dialogDismissLabel(dialog: PlannerDialog): String = when (dialog) {
+    PlannerDialog.REPLACE_CURRENT_PLAN -> "保留当前"
+    PlannerDialog.RESTORE_DRAFT -> "稍后恢复"
+    PlannerDialog.SAVE_FAILED -> "继续编辑"
+    PlannerDialog.OFFLINE -> "使用示例"
+    PlannerDialog.INVALID_DOOR_SIZE -> "取消修改"
+}
+
+private fun dialogConfirmLabel(dialog: PlannerDialog): String = when (dialog) {
+    PlannerDialog.REPLACE_CURRENT_PLAN -> "上传新图"
+    PlannerDialog.RESTORE_DRAFT -> "恢复草稿"
+    PlannerDialog.SAVE_FAILED -> "重试保存"
+    PlannerDialog.OFFLINE -> "重试连接"
+    PlannerDialog.INVALID_DOOR_SIZE -> "返回输入"
+}
+
+private fun dialogConfirmIcon(dialog: PlannerDialog): Int? = when (dialog) {
+    PlannerDialog.REPLACE_CURRENT_PLAN -> R.drawable.ic_file_upload
+    PlannerDialog.RESTORE_DRAFT -> R.drawable.ic_arrow_right
+    PlannerDialog.SAVE_FAILED -> R.drawable.ic_arrow_down
+    PlannerDialog.OFFLINE -> R.drawable.ic_arrow_down
+    PlannerDialog.INVALID_DOOR_SIZE -> R.drawable.ic_arrow_left
+}
+
+/* --------------------------------- 工具 --------------------------------- */
+
+private fun VirtualRoomPlan.id(): String = name
+
+private fun Modifier.clipRounded(): Modifier =
+    this.then(
+        Modifier.background(
+            color = PlannerHfColors.CanvasPanel,
+            shape = RoundedCornerShape(12.dp)
         )
-    }
-}
-
-private data class CanvasTransform(
-    val scale: Float,
-    val origin: Offset
-)
-
-private fun rememberTransform(plan: VirtualRoomPlan, size: Size, pan: Offset): CanvasTransform {
-    val inset = 24f
-    val contentWidth = size.width - inset * 2f
-    val contentHeight = size.height - inset * 2f
-    val scale = minOf(
-        contentWidth / plan.widthMeters.coerceAtLeast(0.1f),
-        contentHeight / plan.depthMeters.coerceAtLeast(0.1f)
     )
-    return CanvasTransform(
-        scale = scale,
-        origin = Offset(size.width / 2f + pan.x, size.height / 2f + pan.y)
-    )
-}
-
-private fun mapOffsetToPlanX(offset: Offset, size: IntSize, plan: VirtualRoomPlan, pan: Offset): Float {
-    val transform = rememberTransform(plan, Size(size.width.toFloat(), size.height.toFloat()), pan)
-    return (offset.x - transform.origin.x) / transform.scale
-}
-
-private fun mapOffsetToPlanZ(offset: Offset, size: IntSize, plan: VirtualRoomPlan, pan: Offset): Float {
-    val transform = rememberTransform(plan, Size(size.width.toFloat(), size.height.toFloat()), pan)
-    return (transform.origin.y - offset.y) / transform.scale
-}
-
-private fun plannerTitle(step: PlannerStep): String = when (step) {
-    PlannerStep.UPLOAD -> "上传你的户型"
-    PlannerStep.PROCESSING -> "正在处理户型"
-    PlannerStep.CALIBRATE -> "校准真实尺寸"
-    PlannerStep.EDIT -> "直接在图上编辑"
-    PlannerStep.GENERATING -> "生成模拟房间"
-    PlannerStep.RESULT -> "模拟房间已就绪"
-}
-
-private fun adjustmentIncreaseLabel(selection: PlannerSelection?): String = when (selection?.type) {
-    PlannerSelectionType.WALL -> "拉长"
-    PlannerSelectionType.DOOR -> "加宽"
-    PlannerSelectionType.WINDOW -> "加宽"
-    null -> "加宽"
-}
-
-private fun adjustmentDecreaseLabel(selection: PlannerSelection?): String = when (selection?.type) {
-    PlannerSelectionType.WALL -> "缩短"
-    PlannerSelectionType.DOOR -> "缩窄"
-    PlannerSelectionType.WINDOW -> "缩窄"
-    null -> "缩窄"
-}
-
-private fun buildPlanIssues(plan: VirtualRoomPlan): List<String> {
-    val issues = mutableListOf<String>()
-    issues += "当前结果来自本地演示数据，请人工确认墙、门、窗位置。"
-    val duplicateWalls = plan.walls.groupBy { listOf(it.centerX, it.centerZ, it.width, it.depth) }.count { it.value.size > 1 }
-    if (duplicateWalls > 0) {
-        issues += "检测到 $duplicateWalls 组重叠墙体，生成前建议继续核对。"
-    }
-    val duplicateOpenings = plan.openings.groupBy { listOf(it.kind, it.centerX, it.centerZ, it.width, it.depth) }.count { it.value.size > 1 }
-    if (duplicateOpenings > 0) {
-        issues += "检测到 $duplicateOpenings 组重叠门窗，可能需要手动调整。"
-    }
-    if (plan.openings.none { it.kind == RoomOpeningKind.DOOR }) {
-        issues += "当前户型没有门，请确认是否遗漏。"
-    }
-    if (plan.openings.none { it.kind == RoomOpeningKind.WINDOW }) {
-        issues += "当前户型没有窗，请确认是否遗漏。"
-    }
-    return issues
-}

@@ -14,9 +14,13 @@ data class RecognizedFloorPlan(
 )
 
 class RecognizeFloorPlanUseCase {
+    /**
+     * 当前为演示流程：不执行真实 CV 识别，无论上传文件还是拍照，
+     * 都返回同一份示例户型（模拟数据），随后走同一提取流程。
+     */
     fun recognize(source: FloorPlanInputSource): RecognizedFloorPlan =
         RecognizedFloorPlan(
-            plan = FloorPlanRoom.demoPlan,
+            plan = FloorPlanRoom.simulatedSamplePlan,
             source = source
         )
 }
