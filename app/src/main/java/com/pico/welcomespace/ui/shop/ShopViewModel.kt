@@ -24,9 +24,45 @@ class ShopViewModel(
     )
     val state: StateFlow<ShopUiState> = _state.asStateFlow()
 
+    private val placementBridge = PlacementBridge()
+
     fun onEvent(event: ShopEvent) {
+        if (event is ShopEvent.PlacementDragMoved) {
+            // 跟随中的射线命中点更新直通房间 Stage；移动不改变 UI 状态，避免面板每帧重组。
+            if (placementBridge.isFollowing) RoomPlacement.move(event.x, event.y, event.z)
+            return
+        }
         _state.update { current ->
             when (event) {
+                is ShopEvent.PlacementDragStarted -> {
+                    val product = current.products.firstOrNull { it.id == event.productId }
+                    if (product == null || !placementBridge.begin(event.productId)) current
+                    else if (RoomPlacement.start(product, event.x, event.y, event.z)) {
+                        current.copy(placingProductId = event.productId)
+                    } else {
+                        // 房间 Stage 未就绪：起手被拒，状态机立即复位，不留脏会话。
+                        placementBridge.end()
+                        current
+                    }
+                }
+                is ShopEvent.PlacementDragReleased -> {
+                    if (!placementBridge.isFollowing) current
+                    else {
+                        RoomPlacement.drop(event.x, event.y, event.z)
+                        placementBridge.end()
+                        current.copy(placingProductId = null)
+                    }
+                }
+                ShopEvent.PlacementDragCancelled -> {
+                    if (!placementBridge.isFollowing) current
+                    else {
+                        RoomPlacement.cancel()
+                        placementBridge.end()
+                        current.copy(placingProductId = null)
+                    }
+                }
+                // Moved 已在方法入口直通处理，此分支仅为 when 穷尽性保留，实际不可达。
+                is ShopEvent.PlacementDragMoved -> current
                 is ShopEvent.QueryChanged -> {
                     val visible = filterProducts(
                         current.products,
