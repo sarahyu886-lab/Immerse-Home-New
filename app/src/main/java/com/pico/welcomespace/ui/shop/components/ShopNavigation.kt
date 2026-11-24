@@ -40,6 +40,9 @@ import com.pico.spatial.ui.design.PicoTheme
 import com.pico.spatial.ui.design.SearchField
 import com.pico.spatial.ui.design.Text
 import com.pico.welcomespace.domain.model.ShopCategory
+import com.pico.welcomespace.ui.common.ImmerseHomeLogo
+import com.pico.welcomespace.ui.planner.PlannerHfColors
+import com.pico.welcomespace.ui.planner.components.HfType
 import com.pico.welcomespace.ui.shop.ShopEvent
 import com.pico.welcomespace.ui.shop.ShopUiState
 
@@ -53,15 +56,17 @@ fun ShopHeader(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         Row(
-            modifier = Modifier.width(260.dp),
+            modifier = Modifier.width(352.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             ImmerseHomeLogo(modifier = Modifier.size(58.dp))
             Text(
                 text = "Immerse Home",
-                style = PicoTheme.typography.headlineMedium,
-                color = PicoTheme.colorScheme.labelPrimary
+                style = HfType.Brand,
+                color = PlannerHfColors.TextPrimary,
+                maxLines = 1,
+                softWrap = false
             )
         }
         SearchField(
@@ -69,13 +74,13 @@ fun ShopHeader(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
             onValueChange = { onEvent(ShopEvent.QueryChanged(it)) },
             onSearch = { onEvent(ShopEvent.QueryChanged(it)) },
             modifier = Modifier.width(410.dp),
-            placeholder = { Text("搜索喜欢的家居好物") }
+            placeholder = { Text("搜索喜欢的家居好物", style = HfType.Note) }
         )
         Spacer(modifier = Modifier.weight(1f))
         Text(
             text = "探索灵感 · 发现生活",
-            style = PicoTheme.typography.bodySmall,
-            color = PicoTheme.colorScheme.labelSecondary
+            style = HfType.Note,
+            color = PlannerHfColors.TextSecondary
         )
         Box {
             val iconColor = PicoTheme.colorScheme.labelPrimary
@@ -110,7 +115,7 @@ fun ShopHeader(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
                         .clip(CircleShape)
                         .background(PicoTheme.colorScheme.interaction)
                         .padding(horizontal = 6.dp, vertical = 1.dp),
-                    style = PicoTheme.typography.labelSmall,
+                    style = HfType.Note,
                     color = PicoTheme.colorScheme.labelPrimaryLight
                 )
             }
@@ -154,64 +159,6 @@ fun ShopHeader(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
 }
 
 @Composable
-private fun ImmerseHomeLogo(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-        val dark = Color(0xFF302D2A) // design-style: fixed-figma-color reference logo charcoal
-        val ivory = Color(0xFFFFFBF5) // design-style: fixed-figma-color reference logo ivory
-        val radius = CornerRadius(w * .20f, h * .20f)
-        drawRoundRect(color = ivory, cornerRadius = radius)
-        drawRoundRect(
-            color = dark,
-            topLeft = Offset(w * .025f, h * .025f),
-            size = Size(w * .95f, h * .95f),
-            cornerRadius = CornerRadius(w * .18f, h * .18f)
-        )
-        val house = Path().apply {
-            moveTo(w * .23f, h * .46f)
-            quadraticTo(w * .23f, h * .43f, w * .26f, h * .40f)
-            lineTo(w * .46f, h * .23f)
-            quadraticTo(w * .50f, h * .19f, w * .54f, h * .23f)
-            lineTo(w * .77f, h * .41f)
-            quadraticTo(w * .80f, h * .44f, w * .80f, h * .48f)
-            lineTo(w * .80f, h * .74f)
-            quadraticTo(w * .80f, h * .79f, w * .75f, h * .79f)
-            lineTo(w * .28f, h * .79f)
-            quadraticTo(w * .23f, h * .79f, w * .23f, h * .74f)
-            close()
-        }
-        drawPath(house, ivory)
-        drawRoundRect(
-            color = Color(0xFFFFB735), // design-style: fixed-figma-color reference logo amber window
-            topLeft = Offset(w * .67f, h * .46f),
-            size = Size(w * .064f, h * .11f),
-            cornerRadius = CornerRadius(w * .032f, h * .032f)
-        )
-        // The dark silhouette cuts a sofa shape out of the ivory house.
-        val sofa = Path().apply {
-            moveTo(w * .32f, h * .80f)
-            lineTo(w * .32f, h * .55f)
-            quadraticTo(w * .32f, h * .50f, w * .37f, h * .50f)
-            lineTo(w * .43f, h * .50f)
-            quadraticTo(w * .48f, h * .50f, w * .48f, h * .55f)
-            lineTo(w * .48f, h * .59f)
-            lineTo(w * .69f, h * .59f)
-            quadraticTo(w * .75f, h * .59f, w * .75f, h * .65f)
-            lineTo(w * .75f, h * .80f)
-            close()
-        }
-        drawPath(sofa, dark)
-        drawRoundRect(
-            color = ivory,
-            topLeft = Offset(w * .37f, h * .70f),
-            size = Size(w * .33f, h * .09f),
-            cornerRadius = CornerRadius(w * .025f, h * .025f)
-        )
-    }
-}
-
-@Composable
 fun ShopSidebar(
     state: ShopUiState,
     onEvent: (ShopEvent) -> Unit,
@@ -228,7 +175,7 @@ fun ShopSidebar(
     ) {
         Text(
             text = "探索分类",
-            style = PicoTheme.typography.titleMedium,
+            style = HfType.Label,
             color = PicoTheme.colorScheme.labelPrimary
         )
         Spacer(modifier = Modifier.height(4.dp))
@@ -236,10 +183,10 @@ fun ShopSidebar(
             val selected = category == state.selectedCategory
             Button(
                 onClick = { onEvent(ShopEvent.CategorySelected(category)) },
-                modifier = Modifier.fillMaxWidth().height(44.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (selected) {
-                        Color(0xE6FFBF4A) // design-style: fixed-figma-color 用户指定黄色选中态。
+                        PlannerHfColors.PrimaryContainer
                     } else {
                         Color.Transparent
                     },
@@ -250,13 +197,13 @@ fun ShopSidebar(
                     }
                 )
             ) {
-                Text(category.label)
+                Text(category.label, style = HfType.Note)
             }
         }
         Spacer(modifier = Modifier.weight(1f))
         Text(
             text = "精选设计\n让好物进入生活",
-            style = PicoTheme.typography.bodyMedium,
+            style = HfType.Note,
             color = PicoTheme.colorScheme.labelSecondary
         )
     }

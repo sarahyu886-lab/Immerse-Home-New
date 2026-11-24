@@ -1,6 +1,7 @@
 package com.pico.welcomespace.ui.shop
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -17,9 +18,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -41,17 +44,13 @@ import com.pico.spatial.ui.platform.containers.OpenStageResult
 import com.pico.spatial.ui.platform.containers.StageStyle
 import com.pico.spatial.ui.platform.containers.openStage
 import com.pico.welcomespace.domain.model.ShopProduct
+import com.pico.welcomespace.ui.planner.PlannerHfColors
+import com.pico.welcomespace.ui.planner.components.HfType
 import com.pico.welcomespace.ui.shop.components.FeaturedProduct
 import com.pico.welcomespace.ui.shop.components.ShopEmptyState
 import com.pico.welcomespace.ui.shop.components.ShopHeader
 import com.pico.welcomespace.ui.shop.components.ShopSidebar
 import com.pico.welcomespace.ui.shop.components.ShopWelcome
-
-private val ShopGlass = Color(0x94FFF8ED) // design-style: fixed-figma-color 保留现有 Figma 面板配色。
-private val ShopGlassStrong = Color(0xB3FFF8ED) // design-style: fixed-figma-color 保留现有 Figma 面板配色。
-private val ShopAccent = Color(0xE6FFBF4A) // design-style: fixed-figma-color 用户指定黄色主操作。
-private val ShopText = Color(0xFF292722) // design-style: fixed-figma-color 保留现有浅色面板前景。
-private val ShopTextMuted = Color(0xFF6E655B) // design-style: fixed-figma-color 保留现有浅色面板前景。
 
 @Composable
 fun ShopScreen(onNavigateToPlanner: () -> Unit = {}) {
@@ -67,6 +66,10 @@ fun ShopScreen(onNavigateToPlanner: () -> Unit = {}) {
     }
     val shopViewModel: ShopViewModel = viewModel(factory = ShopViewModel.Factory)
     val state by shopViewModel.state.collectAsStateWithLifecycle()
+    // 选家具面板离场（切页/销毁）时兜底取消桥接会话，房间侧实体随之回收。
+    DisposableEffect(Unit) {
+        onDispose { shopViewModel.onEvent(ShopEvent.PlacementDragCancelled) }
+    }
     ShopContent(state = state, onEvent = shopViewModel::onEvent, onNavigateToPlanner = onNavigateToPlanner)
 }
 
@@ -76,6 +79,8 @@ internal fun ShopContent(
     onEvent: (ShopEvent) -> Unit,
     onNavigateToPlanner: () -> Unit
 ) {
+    // 拖拽桥接跟随中：面板切弱档玻璃（0.2 级 token），让用户看到房间内的跟随实体。
+    val placing = state.placingProductId != null
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Box(
             modifier = Modifier
@@ -87,41 +92,45 @@ internal fun ShopContent(
                     .fillMaxWidth()
                     .fillMaxHeight(0.075f)
                     .align(Alignment.TopCenter),
-                radius = 18.dp
+                weak = placing
             ) {
                 Box(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Immerse Home  /  选家具", color = ShopText)
+                    Text(
+                        "Immerse Home  /  选家具",
+                        color = PlannerHfColors.TextPrimary,
+                        style = HfType.Label
+                    )
                 }
             }
             ShopGlassPanel(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.80f)
+                    .fillMaxHeight()
                     .align(Alignment.TopCenter)
                     .padding(top = 54.dp),
-                radius = 18.dp
+                weak = placing
             ) {
                 Column(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 14.dp),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     ShopHeader(state = state, onEvent = onEvent)
-                    when {
-                        state.showingPayment -> PaymentContent(state, onEvent)
-                        state.showingCart -> CartContent(state, onEvent)
-                        else -> HomeContent(state, onEvent)
+                    Box(modifier = Modifier.weight(1f)) {
+                        when {
+                            state.showingPayment -> PaymentContent(state, onEvent)
+                            state.showingCart -> CartContent(state, onEvent)
+                            else -> HomeContent(state, onEvent)
+                        }
                     }
+                    ShopBottomTabs(
+                        onNavigateToPlanner = onNavigateToPlanner,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
-            ShopBottomTabs(
-                onNavigateToPlanner = onNavigateToPlanner,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 56.dp)
-            )
         }
     }
 }
@@ -130,7 +139,7 @@ internal fun ShopContent(
 private fun HomeContent(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
     Row(
         modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(18.dp)
+        horizontalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         ShopSidebar(
             state = state,
@@ -168,31 +177,34 @@ private fun HomeContent(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
 @Composable
 internal fun CartContent(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(top = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        modifier = Modifier.fillMaxSize().padding(top = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ShopSecondaryButton(text = "返回选购", onClick = { onEvent(ShopEvent.CloseCart) })
-            Spacer(modifier = Modifier.width(18.dp))
-            Text("购物车", color = ShopText)
+            Spacer(modifier = Modifier.width(12.dp))
+            Text("购物车", color = PlannerHfColors.TextPrimary, style = HfType.Label)
             Spacer(modifier = Modifier.weight(1f))
-            Text("共 ${state.cartCount} 件", color = ShopTextMuted)
+            Text("共 ${state.cartCount} 件", color = PlannerHfColors.TextSecondary, style = HfType.Note)
         }
         val items = state.products.filter { (state.cartQuantities[it.id] ?: 0) > 0 }
         if (items.isEmpty()) {
             ShopGlassPanel(
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                strong = true,
-                radius = 22.dp
+                strong = true
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text("购物车还是空的", color = ShopText)
+                    Text("购物车还是空的", color = PlannerHfColors.TextPrimary, style = HfType.Label)
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text("去挑选一件喜欢的家居好物吧", color = ShopTextMuted)
+                    Text(
+                        "去挑选一件喜欢的家居好物吧",
+                        color = PlannerHfColors.TextSecondary,
+                        style = HfType.Note
+                    )
                 }
             }
         } else {
@@ -208,15 +220,19 @@ internal fun CartContent(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
                     )
                 }
             }
-            ShopGlassPanel(modifier = Modifier.fillMaxWidth(), radius = 20.dp) {
+            ShopGlassPanel(modifier = Modifier.fillMaxWidth()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 18.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 24.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("共 ${state.cartCount} 件商品 · 本地演示，不产生订单", color = ShopTextMuted)
+                    Text(
+                        "共 ${state.cartCount} 件商品 · 本地演示，不产生订单",
+                        color = PlannerHfColors.TextSecondary,
+                        style = HfType.Note
+                    )
                     Spacer(modifier = Modifier.weight(1f))
-                    Text("合计  ¥${state.cartTotal.shopPrice()}", color = ShopAccent)
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Text("合计  ¥${state.cartTotal.shopPrice()}", color = PlannerHfColors.TextPrimary, style = HfType.Label)
+                    Spacer(modifier = Modifier.width(12.dp))
                     ShopPrimaryButton(text = "去支付", onClick = { onEvent(ShopEvent.OpenPayment) })
                 }
             }
@@ -227,41 +243,54 @@ internal fun CartContent(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
 @Composable
 internal fun PaymentContent(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(top = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        modifier = Modifier.fillMaxSize().padding(top = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ShopSecondaryButton(text = "返回购物车", onClick = { onEvent(ShopEvent.ClosePayment) })
-            Spacer(modifier = Modifier.width(18.dp))
-            Text("确认支付", color = ShopText)
+            Spacer(modifier = Modifier.width(12.dp))
+            Text("确认支付", color = PlannerHfColors.TextPrimary, style = HfType.Label)
         }
         Column(
             modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             ShopSectionCard(title = "商品清单") {
                 state.products.filter { (state.cartQuantities[it.id] ?: 0) > 0 }.forEach { product ->
                     val quantity = state.cartQuantities[product.id] ?: 0
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("${product.name}  × $quantity", modifier = Modifier.weight(1f), color = ShopText)
-                        Text("¥${(product.price.toLong() * quantity).shopPrice()}", color = ShopText)
+                        Text(
+                            "${product.name}  × $quantity",
+                            modifier = Modifier.weight(1f),
+                            color = PlannerHfColors.TextPrimary,
+                            style = HfType.Note
+                        )
+                        Text("¥${(product.price.toLong() * quantity).shopPrice()}", color = PlannerHfColors.TextPrimary, style = HfType.Note)
                     }
                 }
             }
             ShopSectionCard(title = "支付方式") {
-                Text("支付宝 · 前端演示", color = ShopAccent)
-                Text("尚未接入商户服务端或支付宝 SDK，不会创建订单或扣款。", color = ShopTextMuted)
+                Text("支付宝 · 前端演示", color = PlannerHfColors.TextPrimary, style = HfType.Label)
+                Text(
+                    "尚未接入商户服务端或支付宝 SDK，不会创建订单或扣款。",
+                    color = PlannerHfColors.TextSecondary,
+                    style = HfType.Note
+                )
             }
         }
-        ShopGlassPanel(modifier = Modifier.fillMaxWidth(), radius = 20.dp) {
+        ShopGlassPanel(modifier = Modifier.fillMaxWidth()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 18.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 24.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("应付  ¥${state.cartTotal.shopPrice()}", color = ShopAccent)
+                    Text("应付  ¥${state.cartTotal.shopPrice()}", color = PlannerHfColors.TextPrimary, style = HfType.Label)
                     if (state.paymentNoticeVisible) {
-                        Text("演示模式：支付宝支付尚未接入，未发起交易。", color = ShopTextMuted)
+                        Text(
+                            "演示模式：支付宝支付尚未接入，未发起交易。",
+                            color = PlannerHfColors.TextSecondary,
+                            style = HfType.Note
+                        )
                     }
                 }
                 ShopPrimaryButton(text = "支付宝支付（演示）", onClick = { onEvent(ShopEvent.DemoAlipayClicked) })
@@ -276,16 +305,16 @@ private fun CartProductRow(
     quantity: Int,
     onEvent: (ShopEvent) -> Unit
 ) {
-    ShopGlassPanel(modifier = Modifier.fillMaxWidth(), strong = true, radius = 20.dp) {
+    ShopGlassPanel(modifier = Modifier.fillMaxWidth(), strong = true) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 24.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
                 modifier = Modifier
                     .size(width = 140.dp, height = 102.dp)
-                    .clip(RoundedCornerShape(18.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(Color.White.copy(alpha = 0.28f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -296,13 +325,13 @@ private fun CartProductRow(
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(product.series, color = ShopTextMuted)
-                Text(product.name, color = ShopText)
-                Text(product.description, color = ShopTextMuted)
+                Text(product.series, color = PlannerHfColors.TextSecondary, style = HfType.Note)
+                Text(product.name, color = PlannerHfColors.TextPrimary, style = HfType.Label)
+                Text(product.description, color = PlannerHfColors.TextSecondary, style = HfType.Note)
             }
-            Text("¥${product.price.toLong().shopPrice()}", color = ShopAccent)
+            Text("¥${product.price.toLong().shopPrice()}", color = PlannerHfColors.TextPrimary, style = HfType.Label)
             ShopSecondaryButton(text = "−", onClick = { onEvent(ShopEvent.CartQuantityChanged(product.id, -1)) })
-            Text(quantity.toString(), color = ShopText)
+            Text(quantity.toString(), color = PlannerHfColors.TextPrimary, style = HfType.Note)
             ShopSecondaryButton(text = "+", onClick = { onEvent(ShopEvent.CartQuantityChanged(product.id, 1)) })
             ShopSecondaryButton(text = "移除", onClick = { onEvent(ShopEvent.RemoveFromCart(product.id)) })
         }
@@ -316,7 +345,7 @@ private fun ShopBottomTabs(
 ) {
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically
     ) {
         ShopSecondaryButton(text = "我的户型", onClick = onNavigateToPlanner)
@@ -329,12 +358,12 @@ private fun ShopSectionCard(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    ShopGlassPanel(modifier = Modifier.fillMaxWidth(), radius = 20.dp) {
+    ShopGlassPanel(modifier = Modifier.fillMaxWidth(), radius = 24.dp) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(22.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(title, color = ShopText)
+            Text(title, color = PlannerHfColors.TextPrimary, style = HfType.Label)
             content()
         }
     }
@@ -344,13 +373,21 @@ private fun ShopSectionCard(
 private fun ShopGlassPanel(
     modifier: Modifier = Modifier,
     strong: Boolean = false,
+    weak: Boolean = false,
     radius: androidx.compose.ui.unit.Dp = 24.dp,
     content: @Composable BoxScope.() -> Unit
 ) {
+    // 玻璃档位沿用 PlannerHfColors tokens：强档 0.75（默认/strong），弱档 0.2（拖拽桥接跟随中）。
+    val fill = when {
+        weak -> PlannerHfColors.GlassWeak
+        strong -> PlannerHfColors.GlassStrong
+        else -> PlannerHfColors.GlassFill
+    }
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(radius))
-            .background(if (strong) ShopGlassStrong else ShopGlass)
+            .background(fill)
+            .border(1.dp, PlannerHfColors.GlassBorder, RoundedCornerShape(radius))
     ) {
         Box(modifier = Modifier.fillMaxSize(), content = content)
     }
@@ -362,11 +399,13 @@ private fun ShopPrimaryButton(text: String, onClick: () -> Unit, enabled: Boolea
         onClick = onClick,
         enabled = enabled,
         colors = ButtonDefaults.buttonColors(
-            containerColor = ShopAccent,
-            contentColor = ShopText
-        )
+            containerColor = PlannerHfColors.PrimaryContainer,
+            contentColor = PlannerHfColors.TextPrimary
+        ),
+        modifier = Modifier.height(56.dp),
+        shape = CircleShape
     ) {
-        Text(text, color = ShopText)
+        Text(text, color = PlannerHfColors.TextPrimary, style = HfType.Label)
     }
 }
 
@@ -376,11 +415,13 @@ private fun ShopSecondaryButton(text: String, onClick: () -> Unit, enabled: Bool
         onClick = onClick,
         enabled = enabled,
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color.Transparent,
-            contentColor = ShopTextMuted
-        )
+            containerColor = PlannerHfColors.SecondaryContainer,
+            contentColor = PlannerHfColors.TextSecondary
+        ),
+        modifier = Modifier.height(56.dp),
+        shape = CircleShape
     ) {
-        Text(text, color = ShopTextMuted)
+        Text(text, color = PlannerHfColors.TextSecondary, style = HfType.Label)
     }
 }
 

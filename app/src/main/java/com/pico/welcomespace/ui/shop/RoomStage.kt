@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -60,13 +61,14 @@ internal object RoomPlacement {
         message = value
     }
 
-    fun start(product: ShopProduct, x: Float, y: Float, z: Float) {
+    fun start(product: ShopProduct, x: Float, y: Float, z: Float): Boolean {
         if (!active) {
             report("虚拟样板间尚未就绪，不能放置模型")
-            return
+            return false
         }
         gestures.trySend(PlacementGesture.Start(product, Vector3(x, y, z)))
-        report("正在拖动${product.name}，会吸附到合法平面并按实物比例放置")
+        report("正在拖入${product.name}，跟随射线吸附合法平面，松手放置")
+        return true
     }
 
     fun move(x: Float, y: Float, z: Float) {
@@ -89,6 +91,9 @@ fun RoomStage() {
     val context = LocalContext.current
     val converter = LocalPhysicalLengthConverter.current
     var attached by remember { mutableStateOf(false) }
+    // 拖拽桥接跟随态：Start/Move 事件持续更新最新射线命中点，逐帧贴到预览实体。
+    var following by remember { mutableStateOf(false) }
+    var followPoint by remember { mutableStateOf<Vector3?>(null) }
 
     SpatialView(
         modifier = Modifier.size(1.dp).pointerInput(root) {
@@ -143,14 +148,38 @@ fun RoomStage() {
         try {
             for (gesture in RoomPlacement.gestures) {
                 when (gesture) {
-                    is PlacementGesture.Start -> furniture.start(gesture.product, gesture.position)
-                    is PlacementGesture.Move -> furniture.movePreview(gesture.position)
-                    is PlacementGesture.Drop -> furniture.drop(gesture.position)
-                    PlacementGesture.Cancel -> furniture.cancel()
+                    is PlacementGesture.Start -> {
+                        furniture.start(gesture.product, gesture.position)
+                        followPoint = gesture.position
+                        following = true
+                    }
+                    is PlacementGesture.Move -> followPoint = gesture.position
+                    is PlacementGesture.Drop -> {
+                        furniture.drop(gesture.position)
+                        following = false
+                        followPoint = null
+                    }
+                    PlacementGesture.Cancel -> {
+                        furniture.cancel()
+                        following = false
+                        followPoint = null
+                    }
                 }
             }
         } finally {
             furniture.cancel()
+        }
+    }
+
+    // 跟随模式：每帧把预览实体贴到最新射线命中点，松手（Drop）或取消（Cancel）后退出。
+    // 降级点（SDK 6.0.0）：射线源为 PlacementPointer 同款 SpatialDragValue.inputDevicePose，
+    // 只在拖拽事件流中按帧携带，没有与之同坐标系的独立可轮询射线 API（tracking 模块坐标系不同）；
+    // 因此跟随帧源 = 拖拽事件流的最新命中点，指针静止时实体保持在最近命中点。
+    LaunchedEffect(following) {
+        if (!following) return@LaunchedEffect
+        while (true) {
+            withFrameNanos { }
+            followPoint?.let { furniture.movePreview(it) }
         }
     }
 }

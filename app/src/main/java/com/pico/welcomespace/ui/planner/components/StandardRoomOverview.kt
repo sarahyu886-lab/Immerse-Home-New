@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -14,12 +16,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pico.spatial.ui.design.Button
 import com.pico.spatial.ui.design.ButtonDefaults
 import com.pico.spatial.ui.design.PicoTheme
 import com.pico.spatial.ui.design.Text
 import com.pico.welcomespace.domain.model.VirtualRoomPlan
+import com.pico.welcomespace.ui.planner.PlannerHfColors
 import kotlin.math.min
 
 @Composable
@@ -34,7 +38,7 @@ fun StandardRoomOverview(
     Row(
         modifier = modifier.fillMaxSize().padding(28.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(28.dp)
+        horizontalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         Box(Modifier.weight(1f).fillMaxSize(), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
@@ -61,22 +65,44 @@ fun StandardRoomOverview(
                 }
                 drawRect(lineColor, topLeft, floorSize, style = Stroke(1.dp.toPx()))
             }
-            Text("4.00 m", modifier = Modifier.align(Alignment.TopCenter),
-                color = PicoTheme.colorScheme.labelPrimary, style = PicoTheme.typography.labelLarge)
-            Text("5.00 m", modifier = Modifier.align(Alignment.CenterEnd),
-                color = PicoTheme.colorScheme.labelPrimary, style = PicoTheme.typography.labelLarge)
+            Text(
+                "4.00 m",
+                modifier = Modifier.align(Alignment.TopCenter),
+                color = PicoTheme.colorScheme.labelPrimary,
+                style = HfType.Note.copy(fontWeight = FontWeight.Medium)
+            )
+            Text(
+                "5.00 m",
+                modifier = Modifier.align(Alignment.CenterEnd),
+                color = PicoTheme.colorScheme.labelPrimary,
+                style = HfType.Note.copy(fontWeight = FontWeight.Medium)
+            )
         }
-        Column(Modifier.weight(.65f), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            Text("标准房间 · 平面鸟瞰", style = PicoTheme.typography.headlineMedium,
-                color = PicoTheme.colorScheme.labelPrimary)
-            Text("室内净宽 4.00 m\n室内净深 5.00 m\n室内净高 2.50 m",
-                style = PicoTheme.typography.bodyLarge, color = PicoTheme.colorScheme.labelPrimary)
-            Text("四面墙 + 地板 + 顶面\n鸟瞰隐藏顶面，每格 1 m\n墙地面为示范材质，非图片识别结果",
-                style = PicoTheme.typography.bodyMedium, color = PicoTheme.colorScheme.labelSecondary)
-            Button(onClick = onEnterRoom, colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xE6FFBF4A), // design-style: fixed-figma-color 用户指定主操作黄色。
-                contentColor = PicoTheme.colorScheme.labelPrimary
-            )) { Text("进入房间") }
+        Column(Modifier.weight(.65f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                "标准房间 · 平面鸟瞰",
+                style = HfType.Section,
+                color = PicoTheme.colorScheme.labelPrimary
+            )
+            Text(
+                "室内净宽 4.00 m\n室内净深 5.00 m\n室内净高 2.50 m",
+                style = HfType.Label,
+                color = PicoTheme.colorScheme.labelPrimary
+            )
+            Text(
+                "四面墙 + 地板 + 顶面\n鸟瞰隐藏顶面，每格 1 m\n墙地面为示范材质，非图片识别结果",
+                style = HfType.Note,
+                color = PicoTheme.colorScheme.labelSecondary
+            )
+            Button(
+                onClick = onEnterRoom,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PlannerHfColors.PrimaryContainer,
+                    contentColor = PlannerHfColors.TextPrimary
+                ),
+                modifier = Modifier.height(56.dp),
+                shape = CircleShape
+            ) { Text("进入房间", style = HfType.Label) }
         }
     }
 }
