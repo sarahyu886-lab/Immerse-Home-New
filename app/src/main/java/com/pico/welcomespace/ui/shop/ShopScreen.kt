@@ -137,19 +137,26 @@ private fun HomeContent(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
             onEvent = onEvent,
             modifier = Modifier.width(188.dp)
         )
+        val scrollState = rememberScrollState()
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             ShopWelcome(state = state, onEvent = onEvent)
+            Text(
+                text = RoomPlacement.message,
+                style = PicoTheme.typography.bodySmall,
+                color = PicoTheme.colorScheme.labelSecondary
+            )
             val product = state.visibleProducts.firstOrNull { it.id == state.selectedProductId }
             if (product != null) {
                 FeaturedProduct(
                     product = product,
                     isFavorite = product.id in state.favorites,
-                    onEvent = onEvent
+                    onEvent = onEvent,
+                    scrollState = scrollState
                 )
             } else {
                 ShopEmptyState(query = state.query)
