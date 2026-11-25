@@ -41,6 +41,7 @@ fun FloorPlanCanvas(
     showHandles: Boolean = true,
     draftPoint: PlanPoint? = null,
     dimensionLabel: Boolean = true,
+    showSurfaceLabels: Boolean = true,
     onTap: (Float, Float) -> Unit = { _, _ -> },
     onLongPress: (Float, Float) -> Unit = { _, _ -> },
     onPan: (Offset) -> Unit = {}
@@ -89,18 +90,20 @@ fun FloorPlanCanvas(
                     topLeft = rect.topLeft,
                     size = rect.size
                 )
-                textPaint.color = colors.TextPrimary.toArgb()
-                textPaint.textSize = roomLabelSize
-                textPaint.typeface = android.graphics.Typeface.create(
-                    android.graphics.Typeface.DEFAULT,
-                    android.graphics.Typeface.BOLD
-                )
-                drawContext.canvas.nativeCanvas.drawText(
-                    surface.label,
-                    origin.x + px(surface.centerX),
-                    origin.y - px(surface.centerZ) + roomLabelSize / 3f,
-                    textPaint
-                )
+                if (showSurfaceLabels) {
+                    textPaint.color = colors.TextPrimary.toArgb()
+                    textPaint.textSize = roomLabelSize
+                    textPaint.typeface = android.graphics.Typeface.create(
+                        android.graphics.Typeface.DEFAULT,
+                        android.graphics.Typeface.BOLD
+                    )
+                    drawContext.canvas.nativeCanvas.drawText(
+                        surface.label,
+                        origin.x + px(surface.centerX),
+                        origin.y - px(surface.centerZ) + roomLabelSize / 3f,
+                        textPaint
+                    )
+                }
             }
 
         // 外轮廓（虚线参考框）

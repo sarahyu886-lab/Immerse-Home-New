@@ -1,5 +1,6 @@
 package com.pico.welcomespace.ui.planner.components
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,8 +25,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -315,6 +319,123 @@ fun HfNumberInput(
                     color = PlannerHfColors.TextPrimary
                 ),
                 modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+fun HfTextInput(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: String = "",
+    singleLine: Boolean = false,
+    minLines: Int = 1,
+    enabled: Boolean = true
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = label,
+            color = PlannerHfColors.TextPrimary,
+            style = HfType.Note
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(PlannerHfColors.SurfaceCream)
+                .border(1.dp, PlannerHfColors.InputBorder, RoundedCornerShape(16.dp))
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+        ) {
+            if (value.isEmpty() && placeholder.isNotEmpty()) {
+                Text(
+                    text = placeholder,
+                    color = PlannerHfColors.AuxiliaryGray,
+                    style = HfType.Note
+                )
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                enabled = enabled,
+                singleLine = singleLine,
+                minLines = minLines,
+                textStyle = TextStyle(
+                    fontSize = 16.sp,
+                    lineHeight = 24.sp,
+                    color = PlannerHfColors.TextPrimary
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+fun HfPlusButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        colors = ButtonDefaults.buttonColors(containerColor = PlannerHfColors.PrimaryContainer),
+        shape = CircleShape,
+        modifier = modifier
+            .hfDisabledAlpha(enabled)
+            .size(56.dp)
+    ) {
+        Text(
+            text = "+",
+            color = PlannerHfColors.ButtonText,
+            style = HfType.Section
+        )
+    }
+}
+
+@Composable
+fun HfProgressRing(
+    progress: Int,
+    modifier: Modifier = Modifier,
+    label: String? = null
+) {
+    val safeProgress = progress.coerceIn(0, 100)
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Canvas(modifier = Modifier.size(96.dp)) {
+                val stroke = 10.dp.toPx()
+                drawCircle(
+                    color = PlannerHfColors.InputBorder,
+                    style = Stroke(width = stroke)
+                )
+                drawArc(
+                    color = PlannerHfColors.PrimaryContainer,
+                    startAngle = -90f,
+                    sweepAngle = 360f * safeProgress / 100f,
+                    useCenter = false,
+                    topLeft = Offset(stroke / 2f, stroke / 2f),
+                    size = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke),
+                    style = Stroke(width = stroke, cap = StrokeCap.Round)
+                )
+            }
+            Text(
+                text = "$safeProgress%",
+                color = PlannerHfColors.TextPrimary,
+                style = HfType.Label
+            )
+        }
+        label?.takeIf { it.isNotBlank() }?.let {
+            Text(
+                text = it,
+                color = PlannerHfColors.TextSecondary,
+                style = HfType.Note
             )
         }
     }

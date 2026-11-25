@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.pico.spatial.core.ecs.Entity
 import com.pico.spatial.core.ecs.TransformComponent
 import com.pico.spatial.core.math.Vector3
+import com.pico.spatial.tracking.hmd.HMDTrackingProvider
 import com.pico.spatial.ui.foundation.content.SpatialView
 import com.pico.spatial.ui.foundation.gesture.TargetEntity
 import com.pico.spatial.ui.foundation.gesture.detectSpatialDragGesture
@@ -29,6 +30,7 @@ import com.pico.welcomespace.domain.model.ShopProduct
 import com.pico.welcomespace.domain.model.PhysicalSize
 import com.pico.welcomespace.ui.planner.RoomPlannerSession
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.collect
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
@@ -94,6 +96,10 @@ fun RoomStage() {
     // 拖拽桥接跟随态：Start/Move 事件持续更新最新射线命中点，逐帧贴到预览实体。
     var following by remember { mutableStateOf(false) }
     var followPoint by remember { mutableStateOf<Vector3?>(null) }
+    // 背面剔除：房间表面实体引用 + 头部追踪，HMD 退出某面墙/天花板后隐藏它。
+    val roomSurfaces = remember { mutableMapOf<String, Entity>() }
+    var roomReady by remember { mutableStateOf(false) }
+    val hmdProvider = remember { HMDTrackingProvider() }
 
     SpatialView(
         modifier = Modifier.size(1.dp).pointerInput(root) {
@@ -122,7 +128,9 @@ fun RoomStage() {
     )
 
     DisposableEffect(Unit) {
+        hmdProvider.start()
         onDispose {
+            hmdProvider.stop()
             RoomPlacement.updateAvailability(false)
             furniture.close()
             root.destroy()
@@ -133,7 +141,10 @@ fun RoomStage() {
         if (!attached) return@LaunchedEffect
         root.components[TransformComponent::class.java]?.setPosition(RoomOriginOffset)
         try {
-            root.addChild(Entity.loadSuspend("asset://standard_room.glb"))
+            val room = Entity.loadSuspend("asset://standard_room.glb")
+            root.addChild(room)
+            collectRoomSurfaces(room, roomSurfaces)
+            roomReady = true
             RoomPlacement.updateAvailability(true)
             RoomPlacement.report("4 × 5 × 2.5 米房间已就绪，拖入模型后可继续移动或旋转")
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
@@ -182,6 +193,16 @@ fun RoomStage() {
             followPoint?.let { furniture.movePreview(it) }
         }
     }
+
+    // 背面剔除：每帧读取 HMD 并转换到房间本地坐标，
+    // 退出到某面墙（或天花板）外侧时隐藏该表面，保证从室外也能看到室内陈设。
+    LaunchedEffect(roomReady) {
+        if (!roomReady) return@LaunchedEffect
+        hmdProvider.dataFlow.collect { data ->
+            val local = root.convertPositionFrom(data.hmdPose.position, null)
+            updateRoomSurfaceVisibility(local, roomSurfaces)
+        }
+    }
 }
 
 // An inscribed circle stays on a detected horizontal plane regardless of its yaw.
@@ -198,3 +219,25 @@ internal fun fitsSurface(
 }
 
 private val RoomOriginOffset = Vector3(0f, 0f, -2.25f)
+
+// standard_room.glb 的节点名（由 tools/generate_demo_assets.py 生成），背面剔除据此定位表面。
+private val RoomSurfaceNames = setOf("ceiling", "wall-z--1", "wall-z-1", "wall-x--1", "wall-x-1")
+
+private fun collectRoomSurfaces(entity: Entity, out: MutableMap<String, Entity>) {
+    val name = entity.getName()
+    if (name in RoomSurfaceNames) out[name] = entity
+    entity.getChildren().forEach { collectRoomSurfaces(it, out) }
+}
+
+// 房间净空 4×5×2.5 m（与 FloorPlanRoom 一致）。HMD 越过边界进入某表面外侧即隐藏该表面。
+private fun updateRoomSurfaceVisibility(local: Vector3, surfaces: Map<String, Entity>) {
+    surfaces["wall-z--1"]?.enabled = local.z >= -RoomHalfDepth
+    surfaces["wall-z-1"]?.enabled = local.z <= RoomHalfDepth
+    surfaces["wall-x--1"]?.enabled = local.x >= -RoomHalfWidth
+    surfaces["wall-x-1"]?.enabled = local.x <= RoomHalfWidth
+    surfaces["ceiling"]?.enabled = local.y <= RoomCeilingHeight
+}
+
+private const val RoomHalfWidth = 2.0f
+private const val RoomHalfDepth = 2.5f
+private const val RoomCeilingHeight = 2.5f

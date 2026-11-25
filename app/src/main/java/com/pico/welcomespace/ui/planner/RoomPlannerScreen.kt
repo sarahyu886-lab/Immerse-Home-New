@@ -53,8 +53,11 @@ import com.pico.welcomespace.ui.planner.components.HfDemoLink
 import com.pico.welcomespace.ui.planner.components.HfGlassPanel
 import com.pico.welcomespace.ui.planner.components.HfNavPill
 import com.pico.welcomespace.ui.planner.components.HfNumberInput
+import com.pico.welcomespace.ui.planner.components.HfPlusButton
 import com.pico.welcomespace.ui.planner.components.HfPrimaryButton
+import com.pico.welcomespace.ui.planner.components.HfProgressRing
 import com.pico.welcomespace.ui.planner.components.HfSecondaryButton
+import com.pico.welcomespace.ui.planner.components.HfTextInput
 import com.pico.welcomespace.ui.planner.components.HfToast
 import com.pico.welcomespace.ui.planner.components.HfToolPanel
 import com.pico.welcomespace.ui.planner.components.HfType
@@ -135,128 +138,90 @@ private fun PlannerShell(
     content: @Composable ((RoomPlannerEvent) -> Unit) -> Unit
 ) {
     val showActionBar = state.step in listOf(
-        PlannerStep.UPLOAD,
         PlannerStep.SELECT_SOURCE,
         PlannerStep.CALIBRATE,
         PlannerStep.EDIT
     )
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
-                .fillMaxHeight(0.90f)
+                .fillMaxHeight(0.94f)
         ) {
-            // 品牌标题衬底
             HfGlassPanel(
-                fill = PlannerHfColors.HeaderFill,
+                fill = PlannerHfColors.GlassFill,
                 border = PlannerHfColors.GlassBorder,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.075f)
+                modifier = Modifier.fillMaxSize()
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 24.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    ImmerseHomeLogo(modifier = Modifier.size(34.dp))
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Immerse Home  /  $title",
-                        color = PlannerHfColors.TextPrimary,
-                        style = HfType.Label
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(
-                        text = "演示数据",
-                        color = PlannerHfColors.AuxiliaryGray,
-                        style = HfType.Note
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            // Glass 主窗口：内容区 → 操作行 → 底部导航行（面板最后一行，独立底栏）
-            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                HfGlassPanel(
-                    fill = PlannerHfColors.GlassFill,
-                    border = PlannerHfColors.GlassBorder,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                        ) {
-                            content(onEvent)
-                            // toast（内容区左下，独立区不与导航/操作行交叠）
-                            state.toast?.let { message ->
-                                HfToast(
-                                    message = message,
-                                    modifier = Modifier
-                                        .align(Alignment.BottomStart)
-                                        .padding(start = 24.dp, bottom = 12.dp)
-                                )
-                            }
-                        }
-                        // 底部操作条（导航行上方）
-                        if (showActionBar) {
-                            Row(
+                        content(onEvent)
+                        state.toast?.let { message ->
+                            HfToast(
+                                message = message,
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(end = 24.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.End
-                            ) {
-                                HfSecondaryButton(
-                                    text = "上传户型图",
-                                    onClick = { onEvent(RoomPlannerEvent.OpenImportOptions) },
-                                    leadingIconRes = R.drawable.ic_file_upload
-                                )
-                                val generateEnabled = isGenerateEnabled(state)
-                                HfPrimaryButton(
-                                    text = "生成模拟房间",
-                                    onClick = { onEvent(RoomPlannerEvent.GenerateRoom) },
-                                    enabled = generateEnabled,
-                                    leadingIconRes = R.drawable.ic_house_add
-                                )
-                            }
-                        }
-                        // 底部导航 pills：面板最底一行，居中
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 12.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            HfNavPill(
-                                label = "我的户型",
-                                iconRes = R.drawable.ic_nav_home,
-                                selected = true,
-                                onClick = {}
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            HfNavPill(
-                                label = "选家具",
-                                iconRes = R.drawable.ic_nav_couch,
-                                selected = false,
-                                onClick = onNavigateToShop
+                                    .align(Alignment.BottomStart)
+                                    .padding(start = 24.dp, bottom = 12.dp)
                             )
                         }
                     }
+                    if (showActionBar) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(end = 24.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            HfSecondaryButton(
+                                text = "上传户型图",
+                                onClick = { onEvent(RoomPlannerEvent.OpenImportOptions) },
+                                leadingIconRes = R.drawable.ic_file_upload
+                            )
+                            val generateEnabled = isGenerateEnabled(state)
+                            HfPrimaryButton(
+                                text = "生成模拟房间",
+                                onClick = { onEvent(RoomPlannerEvent.GenerateRoom) },
+                                enabled = generateEnabled,
+                                leadingIconRes = R.drawable.ic_house_add
+                            )
+                        }
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        HfNavPill(
+                            label = "我的户型",
+                            iconRes = R.drawable.ic_nav_home,
+                            selected = true,
+                            onClick = {}
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        HfNavPill(
+                            label = "选家具",
+                            iconRes = R.drawable.ic_nav_couch,
+                            selected = false,
+                            onClick = onNavigateToShop
+                        )
+                    }
                 }
-                // 模态弹窗 P15–P19（覆盖整个面板含导航栏）
-                state.dialog?.let {
-                    PlannerDialogOverlay(
-                        state = state,
-                        onEvent = onEvent
-                    )
-                }
+            }
+            state.dialog?.let {
+                PlannerDialogOverlay(
+                    state = state,
+                    onEvent = onEvent
+                )
             }
         }
     }
@@ -266,6 +231,22 @@ private fun PlannerShell(
 
 @Composable
 private fun UploadStepContent() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val currentPlan = RoomPlannerSession.activePlan
+    var pan by remember { mutableStateOf(Offset.Zero) }
+    var prompt by remember { mutableStateOf("") }
+    var imageUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var imageName by remember { mutableStateOf<String?>(null) }
+    var statusMessage by remember { mutableStateOf("") }
+    var progressPercent by remember { mutableStateOf(0) }
+    var progressLabel by remember { mutableStateOf("") }
+    var submitting by remember { mutableStateOf(false) }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        imageUri = uri
+        imageName = uri?.let { previewDisplayName(context, it) }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -280,46 +261,144 @@ private fun UploadStepContent() {
                 .weight(0.42f)
                 .fillMaxHeight(0.84f)
         ) {
-            // 上传入口容器：内边距保证 ≥24dp 呼吸空间，卡片固定比例约束避免压边/溢出
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 28.dp, vertical = 24.dp),
-                contentAlignment = Alignment.Center
+                    .padding(horizontal = 18.dp, vertical = 18.dp)
             ) {
-                UploadIllustration(
+                FloorPlanCanvas(
+                    plan = currentPlan,
+                    selection = null,
+                    pan = pan,
+                    showHandles = false,
+                    dimensionLabel = false,
+                    showSurfaceLabels = false,
                     modifier = Modifier
-                        .sizeIn(maxWidth = 240.dp, maxHeight = 240.dp)
-                        .aspectRatio(1f)
+                        .fillMaxSize()
+                        .clipRounded(),
+                    onTap = { _, _ -> },
+                    onLongPress = { _, _ -> },
+                    onPan = { pan += it }
                 )
             }
         }
-        Column(
-            modifier = Modifier.weight(0.58f),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        HfGlassPanel(
+            fill = PlannerHfColors.ToolPanel,
+            border = PlannerHfColors.DialogStroke,
+            modifier = Modifier
+                .weight(0.58f)
+                .fillMaxHeight(0.84f)
         ) {
-            Text(
-                text = "让家的轮廓，\n变成立体空间",
-                color = PlannerHfColors.DeepBrown,
-                style = HfType.Section
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "上传一张室内平面图，先校准真实尺寸，再直接在图上编辑墙、门、窗，最后生成 3D 模拟房间。",
-                color = PlannerHfColors.DeepBrown,
-                style = HfType.Note
-            )
-            Text(
-                text = "上传完成后会自动识别墙体轮廓，你可以在图上继续调整，并进入立体空间试摆家具。",
-                color = PlannerHfColors.DeepBrown,
-                style = HfType.Note
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "上传平面图    →    图上编辑    →    生成房间",
-                color = PlannerHfColors.TextPrimary,
-                style = HfType.Note.copy(fontWeight = FontWeight.Medium)
-            )
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp, vertical = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    HfGlassPanel(
+                        fill = PlannerHfColors.SurfaceCream,
+                        border = PlannerHfColors.InputBorder,
+                        cornerRadius = 20.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 18.dp, vertical = 18.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                            ) {
+                                if (prompt.isBlank()) {
+                                    Text(
+                                        text = "输入你希望新增或修改的内容，例如：在东墙加一扇窄窗，并生成一盏贴顶灯。",
+                                        color = PlannerHfColors.AuxiliaryGray,
+                                        style = HfType.Note,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                                androidx.compose.foundation.text.BasicTextField(
+                                    value = prompt,
+                                    onValueChange = { prompt = it },
+                                    enabled = !submitting,
+                                    textStyle = HfType.Note.copy(color = PlannerHfColors.TextPrimary),
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                HfPlusButton(
+                                    onClick = { imagePicker.launch(arrayOf("image/*")) },
+                                    enabled = !submitting
+                                )
+                                Text(
+                                    text = imageName ?: "添加参考图",
+                                    color = PlannerHfColors.TextSecondary,
+                                    style = HfType.Note,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                HfPrimaryButton(
+                                    text = "发送",
+                                    onClick = {
+                                        scope.launch {
+                                            submitting = true
+                                            statusMessage = ""
+                                            progressPercent = 0
+                                            progressLabel = "准备发送"
+                                            statusMessage = runCatching {
+                                                submitLocalRoomGeneration(
+                                                    context = context,
+                                                    prompt = prompt,
+                                                    imageUri = imageUri,
+                                                    onProgress = { progress, label ->
+                                                        progressPercent = progress
+                                                        progressLabel = label
+                                                    }
+                                                ).message
+                                            }.getOrElse {
+                                                it.message ?: "发送失败，请检查本机桥接服务是否启动"
+                                            }
+                                            submitting = false
+                                        }
+                                    },
+                                    leadingIconRes = R.drawable.ic_arrow_right,
+                                    enabled = !submitting && (prompt.isNotBlank() || imageUri != null)
+                                )
+                            }
+                        }
+                    }
+                    if (statusMessage.isNotBlank()) {
+                        Text(
+                            text = statusMessage,
+                            color = PlannerHfColors.TextSecondary,
+                            style = HfType.Note,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                if (submitting) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(PlannerHfColors.GlassFill.copy(alpha = 0.82f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        HfProgressRing(
+                            progress = progressPercent,
+                            label = progressLabel
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -379,6 +458,24 @@ private fun UploadIllustration(modifier: Modifier = Modifier) {
             cornerRadius = CornerRadius(r * 0.25f, r * 0.25f)
         )
     }
+}
+
+private fun previewDisplayName(context: android.content.Context, uri: android.net.Uri): String {
+    context.contentResolver.query(
+        uri,
+        arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
+        null,
+        null,
+        null
+    )?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (index >= 0) {
+                cursor.getString(index)?.takeIf { it.isNotBlank() }?.let { return it }
+            }
+        }
+    }
+    return uri.lastPathSegment?.substringAfterLast('/') ?: "reference.png"
 }
 
 /* ------------------------------ P02 选择来源 ----------------------------- */

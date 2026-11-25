@@ -1,6 +1,5 @@
 """Local-only Tripo adapter. Credentials never enter Gradle or the APK."""
 import argparse
-import hmac
 import json
 import os
 from pathlib import Path
@@ -11,12 +10,13 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 CONFIG = Path(__file__).resolve().parents[1] / ".private/tripo.json"
-UPSTREAM = "https://api.tripo3d.ai/v2/openapi"
+UPSTREAM = "https://openapi.tripo3d.com/v3"
+DEFAULT_MODEL = "v3.1-20260211"
+DEFAULT_FACE_LIMIT = 50000
 
 
 def initialize(path):
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    # Exclusive creation prevents overwriting a key the user already entered.
     fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     with os.fdopen(fd, "w") as stream:
         json.dump({"tripo_api_key": "", "local_access_token": secrets.token_urlsafe(32)}, stream, indent=2)
@@ -29,15 +29,13 @@ def load_config(path):
     config = json.loads(path.read_text())
     if not isinstance(config.get("tripo_api_key"), str) or not config["tripo_api_key"].strip():
         raise ValueError("Fill tripo_api_key in the private config first.")
-    if not isinstance(config.get("local_access_token"), str) or len(config["local_access_token"]) < 24:
-        raise ValueError("local_access_token must contain at least 24 characters.")
     return config
 
 
 def handler_for(config, allow_generation=False, opener=urlopen):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
-            pass  # Never log payloads, headers, image URLs, or credentials.
+            pass
 
         def setup(self):
             super().setup()
@@ -53,17 +51,20 @@ def handler_for(config, allow_generation=False, opener=urlopen):
             self.wfile.write(body)
 
         def authorized(self):
-            token = self.headers.get("Authorization", "").removeprefix("Bearer ")
-            if self.headers.get("Origin") or not hmac.compare_digest(token, config["local_access_token"]):
-                self.send_json(403, {"error": "local_auth_required"})
+            if self.headers.get("Origin"):
+                self.send_json(403, {"error": "browser_origin_blocked"})
                 return False
             return True
 
         def relay(self, path, payload=None, content_type="application/json"):
-            request = Request(UPSTREAM + path, data=payload, headers={
-                "Authorization": "Bearer " + config["tripo_api_key"],
-                "Content-Type": content_type
-            })
+            request = Request(
+                UPSTREAM + path,
+                data=payload,
+                headers={
+                    "Authorization": "Bearer " + config["tripo_api_key"],
+                    "Content-Type": content_type,
+                },
+            )
             try:
                 with opener(request, timeout=60) as response:
                     data = response.read(2 * 1024 * 1024 + 1)
@@ -71,9 +72,8 @@ def handler_for(config, allow_generation=False, opener=urlopen):
                         raise ValueError("Response too large")
                     self.send_json(200, json.loads(data))
             except HTTPError as error:
-                # Do not expose upstream response bodies which can echo private input.
                 self.send_json(502, {"error": "tripo_http_error", "upstream_status": error.code})
-            except (URLError, ValueError, TimeoutError):
+            except (URLError, ValueError, TimeoutError, json.JSONDecodeError):
                 self.send_json(502, {"error": "tripo_unavailable"})
 
         def do_GET(self):
@@ -82,7 +82,7 @@ def handler_for(config, allow_generation=False, opener=urlopen):
             if self.path == "/health":
                 self.send_json(200, {"configured": True, "generation_enabled": allow_generation})
             elif re.fullmatch(r"/tasks/[A-Za-z0-9_-]{1,128}", self.path):
-                self.relay("/task/" + self.path.split("/")[-1])
+                self.relay("/tasks/" + self.path.split("/")[-1])
             else:
                 self.send_json(404, {"error": "not_found"})
 
@@ -104,22 +104,43 @@ def handler_for(config, allow_generation=False, opener=urlopen):
                     content_type = self.headers.get("Content-Type", "")
                     if not content_type.startswith("multipart/form-data; boundary="):
                         raise ValueError()
-                    self.relay("/upload", payload, content_type)
+                    self.relay("/files", payload, content_type)
                     return
                 if not allow_generation or self.headers.get("X-Confirm-Generation") != "yes":
                     self.send_json(403, {"error": "generation_requires_explicit_cost_confirmation"})
                     return
                 task = json.loads(payload)
-                file = task.get("file", {})
-                if task.get("type") != "image_to_model" or file.get("type") not in ("jpg", "jpeg", "png"):
-                    raise ValueError()
-                if not isinstance(file.get("file_token"), str) or not file["file_token"]:
-                    raise ValueError()
-                # Only forward the small supported surface, never arbitrary task parameters.
-                task = {"type": "image_to_model",
-                        "file": {"type": file["type"], "file_token": file["file_token"]}}
-                self.relay("/task", json.dumps(task).encode())
-            except (ValueError, TypeError, AttributeError):
+                mode = task.get("mode")
+                if mode == "text_to_model":
+                    prompt = task.get("prompt", "")
+                    if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 1024:
+                        raise ValueError()
+                    request_body = {
+                        "prompt": prompt.strip(),
+                        "model": DEFAULT_MODEL,
+                        "auto_size": True,
+                        "face_limit": DEFAULT_FACE_LIMIT,
+                        "texture": True,
+                        "pbr": True,
+                    }
+                    self.relay("/generation/text-to-model", json.dumps(request_body).encode())
+                    return
+                if mode == "image_to_model":
+                    file_token = task.get("file_token", "")
+                    if not isinstance(file_token, str) or not file_token.startswith("file_"):
+                        raise ValueError()
+                    request_body = {
+                        "input": file_token,
+                        "model": DEFAULT_MODEL,
+                        "auto_size": True,
+                        "face_limit": DEFAULT_FACE_LIMIT,
+                        "texture": True,
+                        "pbr": True,
+                    }
+                    self.relay("/generation/image-to-model", json.dumps(request_body).encode())
+                    return
+                raise ValueError()
+            except (ValueError, TypeError, AttributeError, json.JSONDecodeError):
                 self.send_json(400, {"error": "invalid_request"})
     return Handler
 
@@ -145,8 +166,10 @@ def main():
         print(f"Local gateway listening on 127.0.0.1:{args.port}; keys never printed.")
         server.serve_forever()
     except (OSError, ValueError) as error:
-        # Config errors only; do not print config contents or upstream exception URLs.
-        print(f"Configuration error: {type(error).__name__}. Check private file path, permissions and required fields.")
+        print(
+            f"Configuration error: {type(error).__name__}. "
+            "Check private file path, permissions and required fields."
+        )
         raise SystemExit(1)
 
 

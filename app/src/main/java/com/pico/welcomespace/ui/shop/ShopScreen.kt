@@ -82,54 +82,28 @@ internal fun ShopContent(
     // 拖拽桥接跟随中：面板切弱档玻璃（0.2 级 token），让用户看到房间内的跟随实体。
     val placing = state.placingProductId != null
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Box(
+        ShopGlassPanel(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
-                .fillMaxHeight(0.90f)
+                .fillMaxHeight(0.94f),
+            weak = placing
         ) {
-            ShopGlassPanel(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.075f)
-                    .align(Alignment.TopCenter),
-                weak = placing
+            Column(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "Immerse Home  /  选家具",
-                        color = PlannerHfColors.TextPrimary,
-                        style = HfType.Label
-                    )
-                }
-            }
-            ShopGlassPanel(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
-                    .align(Alignment.TopCenter)
-                    .padding(top = 54.dp),
-                weak = placing
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ShopHeader(state = state, onEvent = onEvent)
-                    Box(modifier = Modifier.weight(1f)) {
-                        when {
-                            state.showingPayment -> PaymentContent(state, onEvent)
-                            state.showingCart -> CartContent(state, onEvent)
-                            else -> HomeContent(state, onEvent)
-                        }
+                ShopHeader(state = state, onEvent = onEvent)
+                Box(modifier = Modifier.weight(1f)) {
+                    when {
+                        state.showingPayment -> PaymentContent(state, onEvent)
+                        state.showingCart -> CartContent(state, onEvent)
+                        else -> HomeContent(state, onEvent)
                     }
-                    ShopBottomTabs(
-                        onNavigateToPlanner = onNavigateToPlanner,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
+                ShopBottomTabs(
+                    onNavigateToPlanner = onNavigateToPlanner,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }
@@ -226,7 +200,7 @@ internal fun CartContent(state: ShopUiState, onEvent: (ShopEvent) -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "共 ${state.cartCount} 件商品 · 本地演示，不产生订单",
+                        "共 ${state.cartCount} 件商品",
                         color = PlannerHfColors.TextSecondary,
                         style = HfType.Note
                     )
