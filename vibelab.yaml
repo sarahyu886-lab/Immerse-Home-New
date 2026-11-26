@@ -3,14 +3,14 @@ app:
   slogan: "用自然语言布置你的沉浸式家"
   description: "【PICO Space Program 参赛作品】Immerse Home 是一款面向空间家居设计的 PICO Spatial 应用，支持查看 4×5 米标准房间预览、在沉浸式房间中摆放家具，并结合自然语言与参考图驱动 Tripo 生成可编辑的 3D 家居模型，帮助用户快速探索户型与软装方案。"
   tags:
-    - "Home Design"
-    - "Furniture"
-    - "Spatial"
-    - "AI"
-  category: "Lifestyle"
+    - "实用工具"
+  category: "application"
   icon: "app/src/main/res/mipmap-anydpi/ic_spatial_launcher.png"
-  landscape: ""
-  detail_images: []
+  landscape: "artifacts/vibelab_landscape.png"
+  detail_images:
+    - "artifacts/vibelab_detail_planner.png"
+    - "artifacts/vibelab_detail_shop.png"
+    - "artifacts/vibelab_detail_room.png"
   videos: []
 version:
   name: "1.0.0"
@@ -18,12 +18,9 @@ version:
 build:
   repo_url: "https://github.com/sarahyu886-lab/Immerse-Home-New"
   repo_visibility: "public"
-  tech_stack: "PICO Spatial SDK + Kotlin + SpatialUI"
+  tech_stack: "SpatialSDK+Kotlin"
   ai_tool: "TRAE IDE"
   ai_model: "GLM-5.2 + Tripo"
   features:
-    - "Floor plan preview"
-    - "Spatial furniture placement"
-    - "Natural language 3D generation"
-    - "Reference image guided generation"
+    - "controller_support"
   teammates: []

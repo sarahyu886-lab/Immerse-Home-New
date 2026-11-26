@@ -47,3 +47,4 @@ screenshot-*.png
 .agents/
 .skills/
 skills-lock.json
+.vibelab/
