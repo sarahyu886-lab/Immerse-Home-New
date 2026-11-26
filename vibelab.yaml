@@ -1,4 +1,5 @@
 app:
+  id: "7711987860437729295"
   name: "Immerse Home"
   slogan: "用自然语言布置你的沉浸式家"
   description: "【PICO Space Program 参赛作品】Immerse Home 是一款面向空间家居设计的 PICO Spatial 应用，支持查看 4×5 米标准房间预览、在沉浸式房间中摆放家具，并结合自然语言与参考图驱动 Tripo 生成可编辑的 3D 家居模型，帮助用户快速探索户型与软装方案。"
@@ -18,7 +19,7 @@ version:
 build:
   repo_url: "https://github.com/sarahyu886-lab/Immerse-Home-New"
   repo_visibility: "public"
-  tech_stack: "SpatialSDK+Kotlin"
+  tech_stack: "Kotlin"
   ai_tool: "TRAE IDE"
   ai_model: "GLM-5.2 + Tripo"
   features:
